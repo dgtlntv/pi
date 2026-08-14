@@ -36,10 +36,15 @@ export class WorkingStatusIndicator extends StatusIndicator {
 			"working",
 			ui,
 			(spinner) => theme.fg("accent", spinner),
-			(text) => theme.fg("muted", text),
+			(text) => theme.fg("accent", text),
 			message,
 			indicator,
 		);
+	}
+
+	override render(width: number): string[] {
+		const line = super.render(width)[0] ?? "";
+		return line.startsWith(" ") ? [`${line.slice(1)} `] : [line];
 	}
 }
 

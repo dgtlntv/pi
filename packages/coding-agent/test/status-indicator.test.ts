@@ -5,7 +5,7 @@ import {
 	RetryStatusIndicator,
 	WorkingStatusIndicator,
 } from "../src/modes/interactive/components/status-indicator.ts";
-import { initTheme } from "../src/modes/interactive/theme/theme.ts";
+import { initTheme, theme } from "../src/modes/interactive/theme/theme.ts";
 
 describe("status indicators", () => {
 	afterEach(() => {
@@ -26,7 +26,17 @@ describe("status indicators", () => {
 		expect(idleLines).toEqual([" ".repeat(20)]);
 		expect(indicatorLines).toHaveLength(1);
 		expect(indicatorLines[0]).toContain("Working");
+		expect(indicatorLines[0]?.startsWith(" ")).toBe(false);
 		expect(visibleWidth(indicatorLines[0]!)).toBeLessThanOrEqual(20);
+		indicator.dispose();
+	});
+
+	it("uses the spinner color for the working message", () => {
+		initTheme("dark");
+		const indicator = new WorkingStatusIndicator({ requestRender: vi.fn() } as unknown as TUI, "Working...");
+		const line = indicator.render(20)[0] ?? "";
+
+		expect(line.split(theme.getFgAnsi("accent"))).toHaveLength(3);
 		indicator.dispose();
 	});
 

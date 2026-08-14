@@ -10,7 +10,12 @@
 ### Changed
 
 - Reorganized the interactive footer into two stable rows: directory and usage details on the first, then transient activity and model details on the second.
+- Changed the streaming working message to use the same accent color as its spinner.
 - Changed fullscreen scrollbars to reveal on pointer entry, use dedicated required `scrollbarTrack` and `scrollbarThumb` theme colors, keep one thumb color across normal and expanded states, and support track-click jumping.
+
+### Fixed
+
+- Removed the extra leading space from the streaming working indicator.
 
 ## [0.84.2] - 2026-08-14
 
