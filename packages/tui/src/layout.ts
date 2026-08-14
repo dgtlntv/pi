@@ -33,6 +33,14 @@ export interface LayoutFrame {
 	height: number;
 	lines: string[];
 	primaryScrollView?: ScrollView;
+	primaryScrollbarColumn?: number;
+}
+
+export interface LayoutFrameOptions {
+	/** Terminal-relative rectangle available to the layout root. */
+	contentRect?: LayoutRect;
+	/** Terminal-relative column where the primary scroll view paints its scrollbar. */
+	primaryScrollbarColumn?: number;
 }
 
 export interface ScrollbarGeometry {
@@ -49,6 +57,7 @@ interface LayoutContext {
 	renderCache: Map<Component, Map<number, string[]>>;
 	requestRender: () => void;
 	primaryScrollView: ScrollView | undefined;
+	primaryScrollbarColumn: number | undefined;
 }
 
 function intersect(a: LayoutRect, b: LayoutRect): LayoutRect {
@@ -129,7 +138,11 @@ function layoutComponent(
 
 	if (node.type === "scroll") {
 		const previousScrollTop = node.state.scrollTop;
-		const contentWidth = node.state.getContentWidth(safeWidth);
+		const primaryScrollbarIsExternal =
+			node.state.primary &&
+			context.primaryScrollbarColumn !== undefined &&
+			(context.primaryScrollbarColumn < x || context.primaryScrollbarColumn >= x + safeWidth);
+		const contentWidth = primaryScrollbarIsExternal ? safeWidth : node.state.getContentWidth(safeWidth);
 		const childBox = layoutComponent(
 			context,
 			node.component,
@@ -271,7 +284,11 @@ function replaceScrollbarCell(
 	return `${before}${beforePadding}${targetStyle}${cellPaddingBefore}${replacement}${cellPaddingAfter}${after}`;
 }
 
-export function getScrollbarGeometry(box: LayoutBox, includeHiddenAuto = false): ScrollbarGeometry | undefined {
+export function getScrollbarGeometry(
+	box: LayoutBox,
+	includeHiddenAuto = false,
+	columnOverride?: number,
+): ScrollbarGeometry | undefined {
 	if (!box.scrollView || box.rect.width <= 0 || box.rect.height <= 0) return undefined;
 
 	const contentHeight = box.children[0]?.rect.height ?? box.scrollContentLines?.length ?? 0;
@@ -287,8 +304,8 @@ export function getScrollbarGeometry(box: LayoutBox, includeHiddenAuto = false):
 	const maxScrollTop = Math.max(0, contentHeight - trackHeight);
 	const maxThumbTop = trackHeight - thumbHeight;
 	const thumbOffset = maxScrollTop === 0 ? 0 : Math.round((box.scrollView.scrollTop / maxScrollTop) * maxThumbTop);
-	const column = box.rect.x + box.rect.width - 1;
-	if (column < box.clip.x || column >= box.clip.x + box.clip.width) return undefined;
+	const column = columnOverride ?? box.rect.x + box.rect.width - 1;
+	if (columnOverride === undefined && (column < box.clip.x || column >= box.clip.x + box.clip.width)) return undefined;
 
 	return {
 		column,
@@ -300,8 +317,15 @@ export function getScrollbarGeometry(box: LayoutBox, includeHiddenAuto = false):
 	};
 }
 
-function paintScrollbar(box: LayoutBox, screen: string[], totalWidth: number): void {
-	const geometry = getScrollbarGeometry(box);
+function paintScrollbar(
+	box: LayoutBox,
+	screen: string[],
+	totalWidth: number,
+	primaryScrollView: ScrollView | undefined,
+	primaryScrollbarColumn: number | undefined,
+): void {
+	const columnOverride = box.scrollView === primaryScrollView ? primaryScrollbarColumn : undefined;
+	const geometry = getScrollbarGeometry(box, false, columnOverride);
 	if (!geometry || !box.scrollView) return;
 
 	for (let offset = 0; offset < geometry.trackHeight; offset++) {
@@ -321,7 +345,13 @@ function paintScrollbar(box: LayoutBox, screen: string[], totalWidth: number): v
 	}
 }
 
-function paintBox(box: LayoutBox, screen: string[], totalWidth: number): void {
+function paintBox(
+	box: LayoutBox,
+	screen: string[],
+	totalWidth: number,
+	primaryScrollView: ScrollView | undefined,
+	primaryScrollbarColumn: number | undefined,
+): void {
 	if (box.lines) {
 		const offset = box.lineOffset ?? 0;
 		const firstRow = Math.max(box.rect.y, box.clip.y, 0);
@@ -348,7 +378,9 @@ function paintBox(box: LayoutBox, screen: string[], totalWidth: number): void {
 			}
 		}
 	}
-	for (const child of box.children) paintBox(child, screen, totalWidth);
+	for (const child of box.children) {
+		paintBox(child, screen, totalWidth, primaryScrollView, primaryScrollbarColumn);
+	}
 
 	if (box.scrollView && box.scrollContentLines && box.scrollView.scrollTop > 0 && box.rect.height > 0) {
 		for (let imageRow = box.scrollView.scrollTop - 1; imageRow >= 0; imageRow--) {
@@ -367,7 +399,7 @@ function paintBox(box: LayoutBox, screen: string[], totalWidth: number): void {
 		}
 	}
 
-	paintScrollbar(box, screen, totalWidth);
+	paintScrollbar(box, screen, totalWidth, primaryScrollView, primaryScrollbarColumn);
 }
 
 export function renderLayoutFrame(
@@ -375,29 +407,45 @@ export function renderLayoutFrame(
 	width: number,
 	height: number,
 	requestRender: () => void,
+	options: LayoutFrameOptions = {},
 ): LayoutFrame {
 	const safeWidth = Math.max(1, Math.floor(width));
 	const safeHeight = Math.max(1, Math.floor(height));
+	const requestedRect = options.contentRect ?? { x: 0, y: 0, width: safeWidth, height: safeHeight };
+	const contentX = Math.max(0, Math.min(safeWidth - 1, Math.floor(requestedRect.x)));
+	const contentY = Math.max(0, Math.min(safeHeight - 1, Math.floor(requestedRect.y)));
+	const contentWidth = Math.max(1, Math.min(safeWidth - contentX, Math.floor(requestedRect.width)));
+	const contentHeight = Math.max(1, Math.min(safeHeight - contentY, Math.floor(requestedRect.height)));
+	const contentRect = { x: contentX, y: contentY, width: contentWidth, height: contentHeight };
+	const primaryScrollbarColumn =
+		options.primaryScrollbarColumn === undefined
+			? undefined
+			: Math.max(0, Math.min(safeWidth - 1, Math.floor(options.primaryScrollbarColumn)));
 	const context: LayoutContext = {
-		viewport: { width: safeWidth, height: safeHeight },
+		viewport: { width: contentWidth, height: contentHeight },
 		renderCache: new Map(),
 		requestRender,
 		primaryScrollView: undefined,
+		primaryScrollbarColumn,
 	};
-	const rootBox = layoutComponent(context, root, 0, 0, safeWidth, safeHeight, {
-		x: 0,
-		y: 0,
-		width: safeWidth,
-		height: safeHeight,
-	});
+	const rootBox = layoutComponent(
+		context,
+		root,
+		contentRect.x,
+		contentRect.y,
+		contentRect.width,
+		contentRect.height,
+		contentRect,
+	);
 	const lines = Array.from({ length: safeHeight }, () => "");
-	paintBox(rootBox, lines, safeWidth);
+	paintBox(rootBox, lines, safeWidth, context.primaryScrollView, primaryScrollbarColumn);
 	return {
 		root: rootBox,
 		width: safeWidth,
 		height: safeHeight,
 		lines,
 		...(context.primaryScrollView === undefined ? {} : { primaryScrollView: context.primaryScrollView }),
+		...(primaryScrollbarColumn === undefined ? {} : { primaryScrollbarColumn }),
 	};
 }
 

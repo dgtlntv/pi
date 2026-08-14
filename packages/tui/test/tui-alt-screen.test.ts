@@ -54,6 +54,94 @@ class RecordingTerminal extends VirtualTerminal {
 }
 
 describe("TuiAltScreen", () => {
+	it("applies configurable padding independently on every viewport side", async () => {
+		const terminal = new RecordingTerminal(12, 5);
+		const renderedWidths: number[] = [];
+		const tui = new TuiAltScreen(terminal, undefined, undefined, {
+			viewportPadding: { top: 1, right: 2, bottom: 1, left: 1 },
+		});
+		tui.setLayoutRoot({
+			render: (width) => {
+				renderedWidths.push(width);
+				return ["top", "middle", "bottom"];
+			},
+			invalidate: () => {},
+		});
+
+		tui.start();
+		await terminal.waitForRender();
+		assert.ok(renderedWidths.every((width) => width === 9));
+		assert.deepStrictEqual(terminal.getViewport(), ["", " top        ", " middle     ", " bottom     ", ""]);
+		tui.stop();
+	});
+
+	it("pins the primary scrollbar to the terminal's rightmost column", async () => {
+		const terminal = new RecordingTerminal(12, 5);
+		const tui = new TuiAltScreen(terminal, undefined, undefined, {
+			viewportPadding: { right: 2, bottom: 1, left: 1 },
+		});
+		const transcript = new ScrollView(
+			new Text(Array.from({ length: 8 }, (_, index) => `line ${index + 1}`).join("\n"), 0, 0),
+			{ primary: true, scrollbar: "always" },
+		);
+		tui.setLayoutRoot(transcript);
+
+		tui.start();
+		await terminal.waitForRender();
+		assert.ok(
+			terminal
+				.getViewport()
+				.slice(0, 4)
+				.every((line) => /[│┃]$/.test(line)),
+		);
+		assert.strictEqual(terminal.getViewport()[4], "");
+
+		terminal.sendInput("\x1b[<35;12;1M");
+		await terminal.waitForRender();
+		assert.ok(
+			terminal
+				.getViewport()
+				.slice(0, 4)
+				.some((line) => line.endsWith("█")),
+		);
+		tui.stop();
+	});
+
+	it("extends horizontal rules through side padding without moving text", async () => {
+		const terminal = new RecordingTerminal(12, 3);
+		const tui = new TuiAltScreen(terminal, undefined, undefined, {
+			viewportPadding: { right: 2, left: 1 },
+			extendHorizontalRulesToEdges: true,
+		});
+		tui.setLayoutRoot({
+			render: (width) => ["─".repeat(width), "text"],
+			invalidate: () => {},
+		});
+
+		tui.start();
+		await terminal.waitForRender();
+		assert.strictEqual(terminal.getViewport()[0], "─".repeat(12));
+		assert.ok(terminal.getViewport()[1]?.startsWith(" text"));
+		tui.stop();
+	});
+
+	it("positions overlays inside viewport padding", async () => {
+		const terminal = new RecordingTerminal(12, 5);
+		const tui = new TuiAltScreen(terminal, undefined, undefined, {
+			viewportPadding: { top: 1, right: 2, bottom: 1, left: 1 },
+		});
+		tui.setLayoutRoot(new Text("root", 0, 0));
+		tui.showOverlay(new Text("overlay", 0, 0), { anchor: "bottom-right", width: 7 });
+
+		tui.start();
+		await terminal.waitForRender();
+		const viewport = terminal.getViewport();
+		assert.strictEqual(viewport[3]?.indexOf("overlay"), 3);
+		assert.strictEqual(viewport[0], "");
+		assert.strictEqual(viewport[4], "");
+		tui.stop();
+	});
+
 	it("renders a terminal-height viewport and preserves manual scroll position", async () => {
 		const terminal = new VirtualTerminal(20, 4);
 		const tui = new TuiAltScreen(terminal);

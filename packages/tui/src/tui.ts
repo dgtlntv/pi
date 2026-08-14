@@ -1096,7 +1096,12 @@ export abstract class TuiBase extends Container implements TUI {
 	}
 
 	/** Composite all overlays into content lines (sorted by focusOrder, higher = on top). */
-	protected compositeOverlays(lines: string[], termWidth: number, termHeight: number): string[] {
+	protected compositeOverlays(
+		lines: string[],
+		termWidth: number,
+		termHeight: number,
+		viewport = { x: 0, y: 0, width: termWidth, height: termHeight },
+	): string[] {
 		if (this.overlayStack.length === 0) return lines;
 		const result = [...lines];
 
@@ -1111,7 +1116,7 @@ export abstract class TuiBase extends Container implements TUI {
 
 			// Get layout with height=0 first to determine width and maxHeight
 			// (width and maxHeight don't depend on overlay height)
-			const { width, maxHeight } = this.resolveOverlayLayout(options, 0, termWidth, termHeight);
+			const { width, maxHeight } = this.resolveOverlayLayout(options, 0, viewport.width, viewport.height);
 
 			// Render component at calculated width
 			let overlayLines = component.render(width);
@@ -1122,9 +1127,9 @@ export abstract class TuiBase extends Container implements TUI {
 			}
 
 			// Get final row/col with actual overlay height
-			const { row, col } = this.resolveOverlayLayout(options, overlayLines.length, termWidth, termHeight);
+			const { row, col } = this.resolveOverlayLayout(options, overlayLines.length, viewport.width, viewport.height);
 
-			rendered.push({ overlayLines, row, col, w: width });
+			rendered.push({ overlayLines, row: viewport.y + row, col: viewport.x + col, w: width });
 			minLinesNeeded = Math.max(minLinesNeeded, row + overlayLines.length);
 		}
 

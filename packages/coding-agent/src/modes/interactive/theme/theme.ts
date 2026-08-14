@@ -28,9 +28,26 @@ const ColorValueSchema = Type.Union([
 
 type ColorValue = Static<typeof ColorValueSchema>;
 
+export interface FullscreenPadding {
+	top: number;
+	right: number;
+	bottom: number;
+	left: number;
+}
+
+const DEFAULT_FULLSCREEN_PADDING: FullscreenPadding = { top: 0, right: 1, bottom: 1, left: 1 };
+
+const FullscreenPaddingSchema = Type.Object({
+	top: Type.Optional(Type.Integer({ minimum: 0 })),
+	right: Type.Optional(Type.Integer({ minimum: 0 })),
+	bottom: Type.Optional(Type.Integer({ minimum: 0 })),
+	left: Type.Optional(Type.Integer({ minimum: 0 })),
+});
+
 const ThemeJsonSchema = Type.Object({
 	$schema: Type.Optional(Type.String()),
 	name: Type.String(),
+	fullscreenPadding: Type.Optional(FullscreenPaddingSchema),
 	vars: Type.Optional(Type.Record(Type.String(), ColorValueSchema)),
 	colors: Type.Object({
 		// Core UI (11 colors)
@@ -351,6 +368,7 @@ function withThemeColorFallbacks(colors: ThemeJson["colors"]): ThemeJson["colors
 export class Theme {
 	readonly name?: string;
 	readonly sourcePath?: string;
+	readonly fullscreenPadding: FullscreenPadding;
 	sourceInfo?: SourceInfo;
 	private fgColors: Map<ThemeColor, string>;
 	private bgColors: Map<ThemeBg, string>;
@@ -362,10 +380,16 @@ export class Theme {
 		bgColors: Record<Exclude<ThemeBg, OptionalThemeBg>, string | number> &
 			Partial<Record<OptionalThemeBg, string | number>>,
 		mode: ColorMode,
-		options: { name?: string; sourcePath?: string; sourceInfo?: SourceInfo } = {},
+		options: {
+			name?: string;
+			sourcePath?: string;
+			fullscreenPadding?: Partial<FullscreenPadding>;
+			sourceInfo?: SourceInfo;
+		} = {},
 	) {
 		this.name = options.name;
 		this.sourcePath = options.sourcePath;
+		this.fullscreenPadding = { ...DEFAULT_FULLSCREEN_PADDING, ...options.fullscreenPadding };
 		this.sourceInfo = options.sourceInfo;
 		this.mode = mode;
 		this.fgColors = new Map();
@@ -649,6 +673,7 @@ function createTheme(themeJson: ThemeJson, mode?: ColorMode, sourcePath?: string
 	return new Theme(fgColors, bgColors, colorMode, {
 		name: themeJson.name,
 		sourcePath,
+		fullscreenPadding: themeJson.fullscreenPadding,
 	});
 }
 

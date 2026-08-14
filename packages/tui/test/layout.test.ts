@@ -13,6 +13,29 @@ function visibleLines(lines: string[]): string[] {
 }
 
 describe("viewport layout", () => {
+	it("insets the layout root within a terminal-relative content rectangle", () => {
+		const frame = renderLayoutFrame(new Text("content", 0, 0), 12, 4, () => {}, {
+			contentRect: { x: 1, y: 0, width: 10, height: 3 },
+		});
+
+		assert.deepStrictEqual(frame.root.rect, { x: 1, y: 0, width: 10, height: 3 });
+		assert.deepStrictEqual(visibleLines(frame.lines), [" content", "", "", ""]);
+	});
+
+	it("paints an external primary scrollbar without reserving an internal content column", () => {
+		const transcript = new ScrollView(new Text("123456789\n2\n3\n4\n5", 0, 0), {
+			primary: true,
+			scrollbar: "always",
+		});
+		const frame = renderLayoutFrame(transcript, 12, 4, () => {}, {
+			contentRect: { x: 1, y: 0, width: 9, height: 4 },
+			primaryScrollbarColumn: 11,
+		});
+
+		assert.strictEqual(frame.root.children[0]?.rect.width, 9);
+		assert.ok(visibleLines(frame.lines).every((line) => /[│┃]$/.test(line)));
+	});
+
 	it("allocates vertical grow space deterministically", () => {
 		const frame = renderLayoutFrame(
 			new VStack([

@@ -6,14 +6,19 @@ import { loadThemeFromPath } from "../src/modes/interactive/theme/theme.ts";
 
 const tempDirs: string[] = [];
 
-function loadDarkTheme(): { name: string; colors: Record<string, string | number> } {
-	return JSON.parse(readFileSync(new URL("../src/modes/interactive/theme/dark.json", import.meta.url), "utf8")) as {
-		name: string;
-		colors: Record<string, string | number>;
-	};
+interface TestThemeJson {
+	name: string;
+	fullscreenPadding?: Partial<{ top: number; right: number; bottom: number; left: number }>;
+	colors: Record<string, string | number>;
 }
 
-function writeTheme(theme: { name: string; colors: Record<string, string | number> }): string {
+function loadDarkTheme(): TestThemeJson {
+	return JSON.parse(
+		readFileSync(new URL("../src/modes/interactive/theme/dark.json", import.meta.url), "utf8"),
+	) as TestThemeJson;
+}
+
+function writeTheme(theme: TestThemeJson): string {
 	const testDir = mkdtempSync(join(tmpdir(), "pi-scrollbar-theme-"));
 	tempDirs.push(testDir);
 	const themePath = join(testDir, `${theme.name}.json`);
@@ -27,7 +32,34 @@ afterEach(() => {
 	}
 });
 
-describe("optional fullscreen theme colors", () => {
+describe("fullscreen theme settings", () => {
+	it("uses per-side fullscreen padding with defaults for omitted sides", () => {
+		const themeJson = loadDarkTheme();
+		themeJson.name = "fullscreen-padding-theme";
+		delete themeJson.fullscreenPadding;
+		expect(loadThemeFromPath(writeTheme(themeJson), "truecolor").fullscreenPadding).toEqual({
+			top: 0,
+			right: 1,
+			bottom: 1,
+			left: 1,
+		});
+
+		themeJson.fullscreenPadding = { top: 2, left: 3 };
+		expect(loadThemeFromPath(writeTheme(themeJson), "truecolor").fullscreenPadding).toEqual({
+			top: 2,
+			right: 1,
+			bottom: 1,
+			left: 3,
+		});
+	});
+
+	it("rejects negative fullscreen padding", () => {
+		const themeJson = loadDarkTheme();
+		themeJson.name = "invalid-fullscreen-padding-theme";
+		themeJson.fullscreenPadding = { bottom: -1 };
+		expect(() => loadThemeFromPath(writeTheme(themeJson), "truecolor")).toThrow("fullscreenPadding");
+	});
+
 	it.each(["scrollbarTrack", "scrollbarThumb"] as const)("requires %s", (token) => {
 		const themeJson = loadDarkTheme();
 		themeJson.name = `missing-${token}-theme`;

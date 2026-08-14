@@ -13,6 +13,7 @@ import {
 	getScrollViewBox,
 	getScrollViewsAt,
 	type LayoutFrame,
+	type LayoutRect,
 	renderLayoutFrame,
 	type ScrollbarGeometry,
 } from "./layout.ts";
@@ -148,9 +149,20 @@ interface SearchHighlightRange {
 	current: boolean;
 }
 
+export interface TuiViewportPadding {
+	top: number;
+	right: number;
+	bottom: number;
+	left: number;
+}
+
 export interface TuiAltScreenOptions {
 	/** Number of logical lines moved for each mouse-wheel event. */
 	wheelScrollLines?: number;
+	/** Inset fullscreen content from the terminal edges. */
+	viewportPadding?: Partial<TuiViewportPadding> | (() => Partial<TuiViewportPadding>);
+	/** Extend horizontal rule rows through left and right viewport padding. */
+	extendHorizontalRulesToEdges?: boolean;
 	/** Capture mouse events for viewport scrolling and application-owned text selection. */
 	mouse?: boolean;
 	/** Style a non-current transcript search match. */
@@ -203,6 +215,8 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 	private pressedUrl?: string;
 	private selectionDragged = false;
 	private readonly wheelScrollLines: number;
+	private readonly viewportPadding: () => Partial<TuiViewportPadding>;
+	private readonly extendHorizontalRulesToEdges: boolean;
 	private readonly mouseEnabled: boolean;
 	private readonly searchMatchStyle: (text: string) => string;
 	private readonly searchCurrentMatchStyle: (text: string) => string;
@@ -227,6 +241,9 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 		this.implicitScrollView = new ScrollView(this.implicitDocument, { follow: "end", primary: true });
 		this.flashes = new AltScreenFlashContainer(() => this.requestRender());
 		this.wheelScrollLines = Math.max(1, Math.floor(options.wheelScrollLines ?? 1));
+		const viewportPadding = options.viewportPadding ?? {};
+		this.viewportPadding = typeof viewportPadding === "function" ? viewportPadding : () => viewportPadding;
+		this.extendHorizontalRulesToEdges = options.extendHorizontalRulesToEdges ?? false;
 		this.mouseEnabled = options.mouse ?? true;
 		this.searchMatchStyle = options.searchMatchStyle ?? ((text) => `\x1b[4m${text}\x1b[24m`);
 		this.searchCurrentMatchStyle = options.searchCurrentMatchStyle ?? ((text) => `\x1b[1;7m${text}\x1b[22;27m`);
@@ -725,6 +742,17 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 		return true;
 	}
 
+	private getLayoutScrollbarGeometry(
+		layout: LayoutFrame,
+		box: ReturnType<typeof getScrollViewBox>,
+		includeHiddenAuto = false,
+	): ScrollbarGeometry | undefined {
+		if (!box) return undefined;
+		const primaryScrollView = layout.primaryScrollView ?? this.implicitScrollView;
+		const columnOverride = box.scrollView === primaryScrollView ? layout.primaryScrollbarColumn : undefined;
+		return getScrollbarGeometry(box, includeHiddenAuto, columnOverride);
+	}
+
 	private getScrollToEndIndicatorTarget(layout = this.currentLayout): ScrollToEndIndicatorTarget | undefined {
 		if (!this.scrollToEndIndicator || !layout) return undefined;
 		const scrollView = layout.primaryScrollView ?? this.implicitScrollView;
@@ -738,7 +766,7 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 		}
 
 		const left = Math.max(0, box.rect.x, box.clip.x);
-		const scrollbarColumn = getScrollbarGeometry(box)?.column;
+		const scrollbarColumn = this.getLayoutScrollbarGeometry(layout, box)?.column;
 		const right = Math.min(
 			this.terminal.columns,
 			box.rect.x + box.rect.width,
@@ -794,9 +822,14 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 
 	private getScrollbarTargetAt(x: number, y: number, includeHiddenAuto = false): ScrollbarTarget | undefined {
 		if (this.hasOverlay() || !this.currentLayout) return undefined;
-		for (const scrollView of getScrollViewsAt(this.currentLayout, x, y)) {
+		const primaryScrollView = this.currentLayout.primaryScrollView ?? this.implicitScrollView;
+		const scrollViews = [primaryScrollView, ...getScrollViewsAt(this.currentLayout, x, y)];
+		const seen = new Set<ScrollView>();
+		for (const scrollView of scrollViews) {
+			if (seen.has(scrollView)) continue;
+			seen.add(scrollView);
 			const box = getScrollViewBox(this.currentLayout, scrollView);
-			const geometry = box ? getScrollbarGeometry(box, includeHiddenAuto) : undefined;
+			const geometry = this.getLayoutScrollbarGeometry(this.currentLayout, box, includeHiddenAuto);
 			if (
 				geometry &&
 				x === geometry.column &&
@@ -845,7 +878,7 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 			const box = this.currentLayout
 				? getScrollViewBox(this.currentLayout, this.scrollbarDrag.scrollView)
 				: undefined;
-			const geometry = box ? getScrollbarGeometry(box) : undefined;
+			const geometry = this.currentLayout ? this.getLayoutScrollbarGeometry(this.currentLayout, box) : undefined;
 			if (geometry) {
 				this.scrollScrollbarToPointer(
 					this.scrollbarDrag.scrollView,
@@ -1217,7 +1250,7 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 		if (!box) return screen;
 
 		const rangesByRow = new Map<number, SearchHighlightRange[]>();
-		const scrollbarColumn = getScrollbarGeometry(box)?.column;
+		const scrollbarColumn = this.getLayoutScrollbarGeometry(layout, box)?.column;
 		const minRow = Math.max(0, box.rect.y, box.clip.y);
 		const maxRow = Math.min(screen.length, box.rect.y + box.rect.height, box.clip.y + box.clip.height);
 		const minColumn = Math.max(0, box.rect.x, box.clip.x);
@@ -1337,36 +1370,96 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 		return result;
 	}
 
-	private compositeFlashes(screen: string[], width: number, height: number): string[] {
-		const flashLines = this.flashes.render(width).slice(-height);
+	private extendHorizontalRules(screen: string[], viewport: LayoutRect, width: number): string[] {
+		if (!this.extendHorizontalRulesToEdges || (viewport.x === 0 && viewport.x + viewport.width === width)) {
+			return screen;
+		}
+		const result = [...screen];
+		const rightPadding = width - viewport.x - viewport.width;
+		for (let row = viewport.y; row < viewport.y + viewport.height; row++) {
+			const line = result[row] ?? "";
+			const rule = sliceByColumn(line, viewport.x, viewport.width, true);
+			const plainRule = stripTerminalSequences(rule);
+			if (!/^─+(?: [↑↓] \d+ more )?─+$/.test(plainRule)) continue;
+			const ruleCell = sliceByColumn(rule, 0, 1, true);
+			const lastCell = sliceByColumn(line, width - 1, 1, true);
+			const preserveScrollbar = /^[│┃█]$/.test(stripTerminalSequences(lastCell));
+			const rightRuleWidth = Math.max(0, rightPadding - (preserveScrollbar ? 1 : 0));
+			result[row] =
+				ruleCell.repeat(viewport.x) + rule + ruleCell.repeat(rightRuleWidth) + (preserveScrollbar ? lastCell : "");
+		}
+		return result;
+	}
+
+	private compositeFlashes(screen: string[], width: number, viewport: LayoutRect): string[] {
+		const flashLines = this.flashes.render(viewport.width).slice(-viewport.height);
 		if (flashLines.length === 0) return screen;
 		const result = [...screen];
-		while (result.length < height) result.push("");
+		while (result.length < viewport.y + viewport.height) result.push("");
 		for (let row = 0; row < flashLines.length; row++) {
 			const line = flashLines[row]!;
 			const flashWidth = visibleWidth(line);
 			if (flashWidth === 0) continue;
-			result[row] = compositeTuiLine(result[row] ?? "", line, width - flashWidth, flashWidth, width);
+			const column = viewport.x + viewport.width - flashWidth;
+			result[viewport.y + row] = compositeTuiLine(result[viewport.y + row] ?? "", line, column, flashWidth, width);
 		}
 		return result;
+	}
+
+	private getContentRect(width: number, height: number): LayoutRect {
+		const configuredPadding = this.viewportPadding();
+		const normalize = (value: number | undefined): number =>
+			value !== undefined && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+		const requestedLeft = normalize(configuredPadding.left);
+		const requestedRight = normalize(configuredPadding.right);
+		const requestedTop = normalize(configuredPadding.top);
+		const requestedBottom = normalize(configuredPadding.bottom);
+		const horizontalTotal = requestedLeft + requestedRight;
+		const horizontalAvailable = width - 1;
+		const left =
+			horizontalTotal <= horizontalAvailable
+				? requestedLeft
+				: Math.floor((requestedLeft / horizontalTotal) * horizontalAvailable);
+		const right = horizontalTotal <= horizontalAvailable ? requestedRight : horizontalAvailable - left;
+		const verticalTotal = requestedTop + requestedBottom;
+		const verticalAvailable = height - 1;
+		const top =
+			verticalTotal <= verticalAvailable
+				? requestedTop
+				: Math.floor((requestedTop / verticalTotal) * verticalAvailable);
+		const bottom = verticalTotal <= verticalAvailable ? requestedBottom : verticalAvailable - top;
+		return {
+			x: left,
+			y: top,
+			width: width - left - right,
+			height: height - top - bottom,
+		};
 	}
 
 	protected override doRender(): void {
 		if (this.stopped || !this.altScreenActive) return;
 		const width = Math.max(1, this.terminal.columns);
 		const height = Math.max(1, this.terminal.rows);
+		const contentRect = this.getContentRect(width, height);
 		const root = this.layoutRoot ?? this.implicitScrollView;
-		let nextLayout = renderLayoutFrame(root, width, height, () => this.requestRender());
+		let nextLayout = renderLayoutFrame(root, width, height, () => this.requestRender(), {
+			contentRect,
+			primaryScrollbarColumn: width - 1,
+		});
 		if (this.refreshSearch(nextLayout)) {
-			nextLayout = renderLayoutFrame(root, width, height, () => this.requestRender());
+			nextLayout = renderLayoutFrame(root, width, height, () => this.requestRender(), {
+				contentRect,
+				primaryScrollbarColumn: width - 1,
+			});
 		}
 		let screen = nextLayout.lines.map((line) => line.replace(OSC133_ZONE_PREFIX, ""));
 		screen = this.applySearchHighlights(screen, nextLayout);
+		screen = this.extendHorizontalRules(screen, contentRect, width);
 		screen = this.compositeScrollToEndIndicator(screen, nextLayout, width);
-		screen = this.compositeOverlays(screen, width, height);
+		screen = this.compositeOverlays(screen, width, height, contentRect);
 		if (screen.length > height) screen = screen.slice(screen.length - height);
 		screen = this.applySelection(screen, nextLayout);
-		screen = this.compositeFlashes(screen, width, height);
+		screen = this.compositeFlashes(screen, width, contentRect);
 
 		const cursorPos = this.extractCursorPosition(screen, height);
 		screen = this.applyLineResets(screen).map((line) => {
