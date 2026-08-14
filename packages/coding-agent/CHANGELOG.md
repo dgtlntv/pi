@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added a hoverable and clickable “Jump to latest message” indicator whenever the fullscreen transcript is scrolled up, including its configured jump-to-bottom shortcut.
+
 ### Changed
 
 - Changed fullscreen scrollbars to reveal on pointer entry, use dedicated required `scrollbarTrack` and `scrollbarThumb` theme colors, keep one thumb color across normal and expanded states, and support track-click jumping.
