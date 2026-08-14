@@ -358,7 +358,7 @@ export function createInteractiveTui(options: InteractiveTuiOptions): TuiMainScr
 	if (options.tuiMode === "fullscreen") {
 		const styleSearchMatch = (text: string) => theme.bg("searchMatchBg", theme.fg("searchMatchText", text));
 		return new TuiAltScreen(terminal, options.showHardwareCursor, options.logDirectory, {
-			viewportPadding: options.fullscreenPadding ?? { top: 0, right: 1, bottom: 1, left: 1 },
+			viewportPadding: options.fullscreenPadding ?? { top: 0, right: 1, bottom: 0, left: 1 },
 			extendHorizontalRulesToEdges: true,
 			searchMatchStyle: (text) => theme.underline(styleSearchMatch(text)),
 			searchCurrentMatchStyle: (text) => theme.bold(theme.inverse(styleSearchMatch(text))),
@@ -895,7 +895,7 @@ export class InteractiveMode {
 		}
 
 		// Keep one component tree and remount it when changing renderers.
-		this.renderWidgets(); // Initialize with default spacer
+		this.renderWidgets(); // Initialize widget containers
 		this.transcriptScrollView = new TuiLayouts.ScrollView(this.documentContainer, {
 			follow: "end",
 			primary: true,
@@ -2266,7 +2266,7 @@ export class InteractiveMode {
 	 */
 	private renderWidgets(): void {
 		if (!this.widgetContainerAbove || !this.widgetContainerBelow) return;
-		this.renderWidgetContainer(this.widgetContainerAbove, this.extensionWidgetsAbove, true, true);
+		this.renderWidgetContainer(this.widgetContainerAbove, this.extensionWidgetsAbove, false, true);
 		this.renderWidgetContainer(this.widgetContainerBelow, this.extensionWidgetsBelow, false, false);
 		this.ui.requestRender();
 	}

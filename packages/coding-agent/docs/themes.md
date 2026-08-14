@@ -74,7 +74,7 @@ vim ~/.pi/agent/themes/my-theme.json
   "fullscreenPadding": {
     "top": 0,
     "right": 1,
-    "bottom": 1,
+    "bottom": 0,
     "left": 1
   },
   "vars": {
@@ -155,7 +155,7 @@ vim ~/.pi/agent/themes/my-theme.json
   "fullscreenPadding": {
     "top": 0,
     "right": 1,
-    "bottom": 1,
+    "bottom": 0,
     "left": 1
   },
   "vars": {
@@ -172,7 +172,7 @@ vim ~/.pi/agent/themes/my-theme.json
 ```
 
 - `name` is required, must be unique, and must not contain `/`.
-- `fullscreenPadding` optionally sets fullscreen padding per side in terminal cells. Omitted sides default to `0` for `top` and `1` for `right`, `bottom`, and `left`; set all four sides to `0` to disable outer padding. The primary scrollbar remains in the terminal's rightmost column, and editor separator lines remain full-width.
+- `fullscreenPadding` optionally sets fullscreen padding per side in terminal cells. Omitted sides default to `0` for `top` and `bottom` and `1` for `right` and `left`; set all four sides to `0` to disable outer padding. The primary scrollbar remains in the terminal's rightmost column, and editor separator lines remain full-width.
 - `vars` is optional. Define reusable colors here, then reference them in `colors`.
 - `colors` must define all 53 required tokens. `thinkingMax` and the two search highlight tokens are optional and use the fallbacks listed below.
 

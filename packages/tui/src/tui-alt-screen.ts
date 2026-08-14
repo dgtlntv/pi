@@ -780,8 +780,7 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 		const width = Math.min(availableWidth, renderedWidth);
 		if (width <= 0) return undefined;
 		const bottom = Math.min(this.terminal.rows, box.rect.y + box.rect.height, box.clip.y + box.clip.height);
-		const row = bottom - 1;
-		if (row < Math.max(0, box.rect.y, box.clip.y)) return undefined;
+		const row = Math.max(bottom - 2, Math.max(0, box.rect.y, box.clip.y));
 		return {
 			scrollView,
 			text: width === renderedWidth ? rendered : sliceByColumn(rendered, 0, width, true),

@@ -40,7 +40,7 @@ describe("fullscreen theme settings", () => {
 		expect(loadThemeFromPath(writeTheme(themeJson), "truecolor").fullscreenPadding).toEqual({
 			top: 0,
 			right: 1,
-			bottom: 1,
+			bottom: 0,
 			left: 1,
 		});
 
@@ -48,7 +48,7 @@ describe("fullscreen theme settings", () => {
 		expect(loadThemeFromPath(writeTheme(themeJson), "truecolor").fullscreenPadding).toEqual({
 			top: 2,
 			right: 1,
-			bottom: 1,
+			bottom: 0,
 			left: 3,
 		});
 	});

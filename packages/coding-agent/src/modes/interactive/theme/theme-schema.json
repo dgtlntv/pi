@@ -31,7 +31,7 @@
 				"bottom": {
 					"type": "integer",
 					"minimum": 0,
-					"default": 1
+					"default": 0
 				},
 				"left": {
 					"type": "integer",

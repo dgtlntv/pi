@@ -5,12 +5,17 @@
 ### Added
 
 - Added a hoverable and clickable “Jump to latest message” indicator whenever the fullscreen transcript is scrolled up, including its configured jump-to-bottom shortcut.
-- Added per-side theme-level `fullscreenPadding`, defaulting to zero cells on top and one cell on the left, right, and bottom, while keeping editor separators full-width and the scrollbar in the terminal's rightmost column.
+- Added per-side theme-level `fullscreenPadding`, defaulting to zero cells on the top and bottom and one cell on the left and right, while keeping editor separators full-width and the scrollbar in the terminal's rightmost column.
 
 ### Changed
 
 - Moved the streaming working indicator into the editor border and matched its default spinner and label to the thinking-level border color.
 - Changed fullscreen scrollbars to reveal on pointer entry, use dedicated required `scrollbarTrack` and `scrollbarThumb` theme colors, keep one thumb color across normal and expanded states, and support track-click jumping.
+
+### Fixed
+
+- Moved the fullscreen “Jump to latest message” indicator up one row.
+- Removed the empty line above the chat editor when no extension widget is present.
 
 ## [0.84.2] - 2026-08-14
 

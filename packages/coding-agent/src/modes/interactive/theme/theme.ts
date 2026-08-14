@@ -35,7 +35,7 @@ export interface FullscreenPadding {
 	left: number;
 }
 
-const DEFAULT_FULLSCREEN_PADDING: FullscreenPadding = { top: 0, right: 1, bottom: 1, left: 1 };
+const DEFAULT_FULLSCREEN_PADDING: FullscreenPadding = { top: 0, right: 1, bottom: 0, left: 1 };
 
 const FullscreenPaddingSchema = Type.Object({
 	top: Type.Optional(Type.Integer({ minimum: 0 })),
