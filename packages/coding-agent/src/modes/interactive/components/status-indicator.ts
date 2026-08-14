@@ -1,4 +1,4 @@
-import { type Component, Loader, type TUI } from "@earendil-works/pi-tui";
+import { type Component, Loader, type TUI, truncateToWidth } from "@earendil-works/pi-tui";
 import type { WorkingIndicatorOptions } from "../../../core/extensions/index.ts";
 import { theme } from "../theme/theme.ts";
 import { CountdownTimer } from "./countdown-timer.ts";
@@ -19,6 +19,10 @@ export class StatusIndicator extends Loader {
 	) {
 		super(ui, spinnerColorFn, messageColorFn, message, indicator);
 		this.kind = kind;
+	}
+
+	override render(width: number): string[] {
+		return [truncateToWidth(super.render(width)[1] ?? "", width)];
 	}
 
 	dispose(): void {
@@ -108,7 +112,6 @@ export class IdleStatus implements Component {
 	}
 
 	render(width: number): string[] {
-		const emptyLine = " ".repeat(width);
-		return [emptyLine, emptyLine];
+		return [" ".repeat(width)];
 	}
 }

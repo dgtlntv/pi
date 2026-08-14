@@ -594,7 +594,7 @@ export class InteractiveMode {
 		this.editorContainer = new Container();
 		this.editorContainer.addChild(this.editor as Component);
 		this.footerDataProvider = new FooterDataProvider(this.sessionManager.getCwd());
-		this.footer = new FooterComponent(this.session, this.footerDataProvider);
+		this.footer = new FooterComponent(this.session, this.footerDataProvider, this.statusContainer);
 		this.footer.setAutoCompactEnabled(this.session.autoCompactionEnabled);
 		this.footerContainer = new Container();
 		this.footerContainer.addChild(this.footer);
@@ -898,7 +898,6 @@ export class InteractiveMode {
 		});
 		const dock = new TuiLayouts.VStack([
 			{ component: this.pendingMessagesContainer, shrink: 1, minSize: 0 },
-			{ component: this.statusContainer, shrink: 1, minSize: 0 },
 			{ component: this.widgetContainerAbove, shrink: 1, minSize: 0 },
 			{ component: this.editorContainer, shrink: 1, minSize: 3 },
 			{ component: this.widgetContainerBelow, shrink: 1, minSize: 0 },
@@ -911,7 +910,6 @@ export class InteractiveMode {
 		this.mountInteractiveTui(this.renderer, [
 			this.documentContainer,
 			this.pendingMessagesContainer,
-			this.statusContainer,
 			this.widgetContainerAbove,
 			this.editorContainer,
 			this.widgetContainerBelow,
@@ -2281,9 +2279,11 @@ export class InteractiveMode {
 
 		this.footerContainer.clear();
 		if (factory) {
-			// Create and add custom footer, passing the data provider
+			// Create and add custom footer, passing the data provider. The transient
+			// status remains docked beneath extension-provided footer content.
 			this.customFooter = factory(this.ui, theme, this.footerDataProvider);
 			this.footerContainer.addChild(this.customFooter);
+			this.footerContainer.addChild(this.statusContainer);
 		} else {
 			// Restore built-in footer
 			this.customFooter = undefined;

@@ -9,6 +9,7 @@
 
 ### Changed
 
+- Reorganized the interactive footer into two stable rows: directory and usage details on the first, then transient activity and model details on the second.
 - Changed fullscreen scrollbars to reveal on pointer entry, use dedicated required `scrollbarTrack` and `scrollbarThumb` theme colors, keep one thumb color across normal and expanded states, and support track-click jumping.
 
 ## [0.84.2] - 2026-08-14

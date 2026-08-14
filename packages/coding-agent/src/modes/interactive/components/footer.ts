@@ -29,6 +29,33 @@ export function formatTokens(count: number): string {
 	return `${Math.round(count / 1000000)}M`;
 }
 
+function composeFooterRow(left: string, right: string, width: number): string {
+	const leftWidth = visibleWidth(left);
+	const rightWidth = visibleWidth(right);
+	if (rightWidth === 0) return truncateToWidth(left, width, "...");
+	if (leftWidth === 0) {
+		const truncatedRight = truncateToWidth(right, width, "");
+		return " ".repeat(Math.max(0, width - visibleWidth(truncatedRight))) + truncatedRight;
+	}
+
+	const minPadding = 2;
+	if (leftWidth + minPadding + rightWidth <= width) {
+		return left + " ".repeat(width - leftWidth - rightWidth) + right;
+	}
+	if (width <= minPadding + 1) return truncateToWidth(right, width, "");
+
+	const availableWidth = width - minPadding;
+	const minimumLeftWidth = Math.min(leftWidth, Math.max(1, Math.floor(availableWidth / 3)));
+	const truncatedRight = truncateToWidth(right, availableWidth - minimumLeftWidth, "...");
+	const truncatedRightWidth = visibleWidth(truncatedRight);
+	const truncatedLeft = truncateToWidth(left, availableWidth - truncatedRightWidth, "...");
+	return (
+		truncatedLeft +
+		" ".repeat(Math.max(0, width - visibleWidth(truncatedLeft) - truncatedRightWidth)) +
+		truncatedRight
+	);
+}
+
 export function formatCwdForFooter(cwd: string, home: string | undefined): string {
 	if (!home) return cwd;
 
@@ -44,17 +71,19 @@ export function formatCwdForFooter(cwd: string, home: string | undefined): strin
 }
 
 /**
- * Footer component that shows pwd, token stats, and context usage.
- * Computes token/context stats from session, gets git branch and extension statuses from provider.
+ * Footer component that shows a summary row, a transient status row, and extension statuses.
+ * Computes token/context stats from session and gets git branch and extension statuses from the provider.
  */
 export class FooterComponent implements Component {
 	private autoCompactEnabled = true;
 	private session: AgentSession;
 	private footerData: ReadonlyFooterDataProvider;
+	private statusIndicator: Component | undefined;
 
-	constructor(session: AgentSession, footerData: ReadonlyFooterDataProvider) {
+	constructor(session: AgentSession, footerData: ReadonlyFooterDataProvider, statusIndicator?: Component) {
 		this.session = session;
 		this.footerData = footerData;
+		this.statusIndicator = statusIndicator;
 	}
 
 	setSession(session: AgentSession): void {
@@ -65,12 +94,9 @@ export class FooterComponent implements Component {
 		this.autoCompactEnabled = enabled;
 	}
 
-	/**
-	 * No-op: git branch caching now handled by provider.
-	 * Kept for compatibility with existing call sites in interactive-mode.
-	 */
+	/** Git branch caching is handled by the provider. */
 	invalidate(): void {
-		// No-op: git branch is cached/invalidated by provider
+		this.statusIndicator?.invalidate();
 	}
 
 	/**
@@ -163,71 +189,29 @@ export class FooterComponent implements Component {
 			statsParts.push(`${theme.fg("dim", "•")} ${theme.bold(theme.fg("warning", "xp"))}`);
 		}
 
-		let statsLeft = statsParts.join(" ");
+		const statsDisplay = theme.fg("dim", statsParts.join(" "));
+		const pwdDisplay = theme.fg("dim", pwd);
+		const statusDisplay = (this.statusIndicator?.render(width)[0] ?? "").trimEnd();
 
-		// Add model name on the right side, plus thinking level if model supports it
+		// Model and thinking details stay on the right side of the second row.
 		const modelName = state.model?.id || "no-model";
-
-		let statsLeftWidth = visibleWidth(statsLeft);
-
-		// If statsLeft is too wide, truncate it
-		if (statsLeftWidth > width) {
-			statsLeft = truncateToWidth(statsLeft, width, "...");
-			statsLeftWidth = visibleWidth(statsLeft);
-		}
-
-		// Calculate available space for padding (minimum 2 spaces between stats and model)
-		const minPadding = 2;
-
-		// Add thinking level indicator if model supports reasoning
-		let rightSideWithoutProvider = modelName;
+		let modelDetails = modelName;
 		if (state.model?.reasoning) {
 			const thinkingLevel = state.thinkingLevel || "off";
-			rightSideWithoutProvider =
-				thinkingLevel === "off" ? `${modelName} • thinking off` : `${modelName} • ${thinkingLevel}`;
+			modelDetails = thinkingLevel === "off" ? `${modelName} • thinking off` : `${modelName} • ${thinkingLevel}`;
 		}
-
-		// Prepend the provider in parentheses if there are multiple providers and there's enough room
-		let rightSide = rightSideWithoutProvider;
 		if (this.footerData.getAvailableProviderCount() > 1 && state.model) {
-			rightSide = `(${state.model!.provider}) ${rightSideWithoutProvider}`;
-			if (statsLeftWidth + minPadding + visibleWidth(rightSide) > width) {
-				// Too wide, fall back
-				rightSide = rightSideWithoutProvider;
+			const withProvider = `(${state.model.provider}) ${modelDetails}`;
+			if (visibleWidth(statusDisplay) + 2 + visibleWidth(withProvider) <= width) {
+				modelDetails = withProvider;
 			}
 		}
+		const modelDisplay = theme.fg("dim", modelDetails);
 
-		const rightSideWidth = visibleWidth(rightSide);
-		const totalNeeded = statsLeftWidth + minPadding + rightSideWidth;
-
-		let statsLine: string;
-		if (totalNeeded <= width) {
-			// Both fit - add padding to right-align model
-			const padding = " ".repeat(width - statsLeftWidth - rightSideWidth);
-			statsLine = statsLeft + padding + rightSide;
-		} else {
-			// Need to truncate right side
-			const availableForRight = width - statsLeftWidth - minPadding;
-			if (availableForRight > 0) {
-				const truncatedRight = truncateToWidth(rightSide, availableForRight, "");
-				const truncatedRightWidth = visibleWidth(truncatedRight);
-				const padding = " ".repeat(Math.max(0, width - statsLeftWidth - truncatedRightWidth));
-				statsLine = statsLeft + padding + truncatedRight;
-			} else {
-				// Not enough space for right side at all
-				statsLine = statsLeft;
-			}
-		}
-
-		// Apply dim to each part separately. statsLeft may contain color codes (for context %)
-		// that end with a reset, which would clear an outer dim wrapper. So we dim the parts
-		// before and after the colored section independently.
-		const dimStatsLeft = theme.fg("dim", statsLeft);
-		const remainder = statsLine.slice(statsLeft.length); // padding + rightSide
-		const dimRemainder = theme.fg("dim", remainder);
-
-		const pwdLine = truncateToWidth(theme.fg("dim", pwd), width, theme.fg("dim", "..."));
-		const lines = [pwdLine, dimStatsLeft + dimRemainder];
+		const lines = [
+			composeFooterRow(pwdDisplay, statsDisplay, width),
+			composeFooterRow(statusDisplay, modelDisplay, width),
+		];
 
 		// Add extension statuses on a single line, sorted by key alphabetically
 		const extensionStatuses = this.footerData.getExtensionStatuses();
