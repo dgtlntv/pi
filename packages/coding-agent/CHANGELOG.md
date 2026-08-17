@@ -15,10 +15,6 @@
 - Moved the streaming working indicator into the editor border and matched its default spinner and label to the thinking-level border color.
 - Changed fullscreen scrollbars to reveal on pointer entry, use dedicated required `scrollbarTrack` and `scrollbarThumb` theme colors, keep one thumb color across normal and expanded states, and support track-click jumping.
 
-### Fixed
-
-- Moved the fullscreen “Jump to latest message” indicator up one row.
-
 ## [0.84.2] - 2026-08-14
 
 ### New Features
