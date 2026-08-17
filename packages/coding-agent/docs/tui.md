@@ -643,6 +643,8 @@ pi.registerCommand("pick", {
         scrollInfo: (t) => theme.fg("dim", t),
         noMatch: (t) => theme.fg("warning", t),
       });
+      // Optional: keep the configured value marked with ✓ while focus moves.
+      selectList.setCurrentValue("opt2");
       selectList.onSelect = (item) => done(item.value);
       selectList.onCancel = () => done(null);
       container.addChild(selectList);

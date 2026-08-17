@@ -27,7 +27,8 @@ export class ShowImagesSelectorComponent extends Container {
 		// Create selector
 		this.selectList = new SelectList(items, 5, getSelectListTheme(), SHOW_IMAGES_SELECT_LIST_LAYOUT);
 
-		// Preselect current value
+		// Keep the configured value visible while the user browses the other option.
+		this.selectList.setCurrentValue(currentValue ? "yes" : "no");
 		this.selectList.setSelectedIndex(currentValue ? 0 : 1);
 
 		this.selectList.onSelect = (item) => {

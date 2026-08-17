@@ -208,7 +208,8 @@ class SelectSubmenu extends Container {
 			SETTINGS_SUBMENU_SELECT_LIST_LAYOUT,
 		);
 
-		// Pre-select current value
+		// Keep the configured value visible while the user browses other options.
+		this.selectList.setCurrentValue(currentValue);
 		const currentIndex = options.findIndex((o) => o.value === currentValue);
 		if (currentIndex !== -1) {
 			this.selectList.setSelectedIndex(currentIndex);

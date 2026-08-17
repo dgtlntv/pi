@@ -49,7 +49,8 @@ export class ThinkingSelectorComponent extends Container {
 			THINKING_SELECT_LIST_LAYOUT,
 		);
 
-		// Preselect current level
+		// Keep the configured level visible while the user browses other options.
+		this.selectList.setCurrentValue(currentLevel);
 		const currentIndex = thinkingLevels.findIndex((item) => item.value === currentLevel);
 		if (currentIndex !== -1) {
 			this.selectList.setSelectedIndex(currentIndex);

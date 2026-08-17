@@ -18,6 +18,23 @@ const visibleIndexOf = (line: string, text: string): number => {
 };
 
 describe("SelectList", () => {
+	it("marks the current value independently from keyboard focus", () => {
+		const list = new SelectList(
+			[
+				{ value: "one", label: "One" },
+				{ value: "two", label: "Two" },
+			],
+			5,
+			testTheme,
+		);
+		list.setCurrentValue("one");
+
+		assert.deepStrictEqual(list.render(80), ["→ ✓ One", "    Two"]);
+
+		list.setSelectedIndex(1);
+		assert.deepStrictEqual(list.render(80), ["  ✓ One", "→   Two"]);
+	});
+
 	it("normalizes multiline descriptions to single line", () => {
 		const items = [
 			{

@@ -28,7 +28,6 @@ export class ThemeSelectorComponent extends Container {
 		const themeItems: SelectItem[] = themes.map((name) => ({
 			value: name,
 			label: name,
-			description: name === currentTheme ? "(current)" : undefined,
 		}));
 
 		// Add top border
@@ -37,7 +36,8 @@ export class ThemeSelectorComponent extends Container {
 		// Create selector
 		this.selectList = new SelectList(themeItems, 10, getSelectListTheme(), THEME_SELECT_LIST_LAYOUT);
 
-		// Preselect current theme
+		// Keep the configured theme visible while the user previews other options.
+		this.selectList.setCurrentValue(currentTheme);
 		const currentIndex = themes.indexOf(currentTheme);
 		if (currentIndex !== -1) {
 			this.selectList.setSelectedIndex(currentIndex);

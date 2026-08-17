@@ -41,6 +41,7 @@ export class SelectList implements Component {
 	private items: SelectItem[] = [];
 	private filteredItems: SelectItem[] = [];
 	private selectedIndex: number = 0;
+	private currentValue?: string;
 	private maxVisible: number = 5;
 	private theme: SelectListTheme;
 	private layout: SelectListLayoutOptions;
@@ -65,6 +66,11 @@ export class SelectList implements Component {
 
 	setSelectedIndex(index: number): void {
 		this.selectedIndex = Math.max(0, Math.min(index, this.filteredItems.length - 1));
+	}
+
+	/** Mark the currently configured value independently from keyboard focus. */
+	setCurrentValue(value: string | undefined): void {
+		this.currentValue = this.items.some((item) => item.value === value) ? value : undefined;
 	}
 
 	invalidate(): void {
@@ -143,7 +149,14 @@ export class SelectList implements Component {
 		descriptionSingleLine: string | undefined,
 		primaryColumnWidth: number,
 	): string {
-		const prefix = isSelected ? "→ " : "  ";
+		const cursorPrefix = isSelected ? this.theme.selectedPrefix("→ ") : "  ";
+		const currentPrefix =
+			this.currentValue === undefined
+				? ""
+				: item.value === this.currentValue
+					? this.theme.selectedPrefix("✓ ")
+					: "  ";
+		const prefix = cursorPrefix + currentPrefix;
 		const prefixWidth = visibleWidth(prefix);
 
 		if (descriptionSingleLine && width > 40) {
@@ -158,7 +171,7 @@ export class SelectList implements Component {
 			if (remainingWidth > MIN_DESCRIPTION_WIDTH) {
 				const truncatedDesc = truncateToWidth(descriptionSingleLine, remainingWidth, "");
 				if (isSelected) {
-					return this.theme.selectedText(`${prefix}${truncatedValue}${spacing}${truncatedDesc}`);
+					return prefix + this.theme.selectedText(`${truncatedValue}${spacing}${truncatedDesc}`);
 				}
 
 				const descText = this.theme.description(spacing + truncatedDesc);
@@ -169,7 +182,7 @@ export class SelectList implements Component {
 		const maxWidth = width - prefixWidth - 2;
 		const truncatedValue = this.truncatePrimary(item, isSelected, maxWidth, maxWidth);
 		if (isSelected) {
-			return this.theme.selectedText(`${prefix}${truncatedValue}`);
+			return prefix + this.theme.selectedText(truncatedValue);
 		}
 
 		return prefix + truncatedValue;

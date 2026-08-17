@@ -7,11 +7,31 @@ import {
 	SettingsSelectorComponent,
 } from "../src/modes/interactive/components/settings-selector.ts";
 import { initTheme } from "../src/modes/interactive/theme/theme.ts";
+import { stripAnsi } from "../src/utils/ansi.ts";
 
 describe("SettingsSelectorComponent", () => {
 	beforeAll(() => {
 		initTheme("dark");
 		setKeybindings(new KeybindingsManager());
+	});
+
+	it("keeps the configured submenu value marked while focus moves", () => {
+		const config = {
+			thinkingLevel: "medium",
+			availableThinkingLevels: ["low", "medium", "high"],
+			availableThemes: [],
+			warnings: {},
+		} as unknown as SettingsConfig;
+		const list = new SettingsSelectorComponent(config, {} as SettingsCallbacks).getSettingsList();
+
+		for (const character of "Thinking level") list.handleInput(character);
+		list.handleInput("\r");
+		expect(stripAnsi(list.render(80).join("\n"))).toContain("→ ✓ medium");
+
+		list.handleInput("\x1b[B");
+		const rendered = stripAnsi(list.render(80).join("\n"));
+		expect(rendered).toContain("  ✓ medium");
+		expect(rendered).toContain("→   high");
 	});
 
 	it("cycles through fullscreen settings", () => {

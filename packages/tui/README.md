@@ -526,6 +526,7 @@ const list = new SelectList(
 list.onSelect = (item) => console.log("Selected:", item);
 list.onCancel = () => console.log("Cancelled");
 list.onSelectionChange = (item) => console.log("Highlighted:", item);
+list.setCurrentValue("opt1"); // Show ✓ on the configured value while focus moves
 list.setFilter("opt"); // Filter items
 ```
 
