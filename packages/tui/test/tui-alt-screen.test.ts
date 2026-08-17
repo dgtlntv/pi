@@ -178,7 +178,7 @@ describe("TuiAltScreen", () => {
 		tui.stop();
 	});
 
-	it("shows a hoverable, clickable jump-to-end indicator one row above the viewport bottom", async () => {
+	it("shows a hoverable, clickable jump-to-end indicator at the viewport bottom", async () => {
 		const terminal = new RecordingTerminal(30, 4);
 		const tui = new TuiAltScreen(terminal, undefined, undefined, {
 			scrollToEndIndicator: (hovered) => `${hovered ? "\x1b[45m" : "\x1b[44m"} ↓ Jump to latest message \x1b[49m`,
@@ -195,11 +195,11 @@ describe("TuiAltScreen", () => {
 		terminal.sendInput("\x1b[<64;1;1M");
 		await terminal.waitForRender();
 		assert.strictEqual(transcript.isFollowingEnd, false);
-		assert.ok(terminal.getViewport()[2]?.includes("↓ Jump to latest message"));
-		assert.ok(!terminal.getViewport()[3]?.includes("Jump to latest message"));
+		assert.ok(!terminal.getViewport()[2]?.includes("Jump to latest message"));
+		assert.ok(terminal.getViewport()[3]?.includes("↓ Jump to latest message"));
 
 		const hoverEventCount = terminal.events.length;
-		terminal.sendInput("\x1b[<35;15;3M");
+		terminal.sendInput("\x1b[<35;15;4M");
 		await terminal.waitForRender();
 		assert.ok(
 			terminal.events
@@ -207,7 +207,7 @@ describe("TuiAltScreen", () => {
 				.some((event) => event.type === "write" && event.data.includes("\x1b[45m ↓ Jump to latest message ")),
 		);
 
-		terminal.sendInput("\x1b[<0;15;3M");
+		terminal.sendInput("\x1b[<0;15;4M");
 		await terminal.waitForRender();
 		assert.strictEqual(transcript.isFollowingEnd, true);
 		assert.ok(!terminal.getViewport().some((line) => line.includes("Jump to latest message")));
