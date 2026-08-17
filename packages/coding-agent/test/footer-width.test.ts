@@ -87,13 +87,10 @@ function createSession(options: {
 	return session as unknown as AgentSession;
 }
 
-function createFooterData(
-	providerCount: number,
-	extensionStatuses: ReadonlyMap<string, string> = new Map(),
-): ReadonlyFooterDataProvider {
+function createFooterData(providerCount: number): ReadonlyFooterDataProvider {
 	const provider = {
 		getGitBranch: () => "main",
-		getExtensionStatuses: () => extensionStatuses,
+		getExtensionStatuses: () => new Map<string, string>(),
 		getAvailableProviderCount: () => providerCount,
 		onBranchChange: (callback: () => void) => {
 			void callback;
@@ -189,8 +186,8 @@ describe("FooterComponent width handling", () => {
 		});
 		const footer = new FooterComponent(session, createFooterData(1));
 
-		const summaryLine = stripAnsi(footer.render(120)[0]);
-		expect(summaryLine).toContain("$1.250");
+		const statsLine = stripAnsi(footer.render(120)[1]);
+		expect(statsLine).toContain("$1.250");
 	});
 
 	it("shows the latest cache hit rate when cache usage is present", () => {
@@ -206,8 +203,8 @@ describe("FooterComponent width handling", () => {
 		});
 		const footer = new FooterComponent(session, createFooterData(1));
 
-		const summaryLine = stripAnsi(footer.render(120)[0]);
-		expect(summaryLine).toContain("CH25.0%");
+		const statsLine = stripAnsi(footer.render(120)[1]);
+		expect(statsLine).toContain("CH25.0%");
 	});
 
 	it("marks Kimi Coding costs as subscription estimates", () => {
@@ -224,14 +221,14 @@ describe("FooterComponent width handling", () => {
 		});
 		const footer = new FooterComponent(session, createFooterData(1));
 
-		expect(stripAnsi(footer.render(120)[0])).toContain("$1.234 (sub)");
+		expect(stripAnsi(footer.render(120)[1])).toContain("$1.234 (sub)");
 	});
 
 	it("marks explicitly identified subscription auth", () => {
 		const session = createSession({ sessionName: "", provider: "anthropic", usingSubscription: true });
 		const footer = new FooterComponent(session, createFooterData(1));
 
-		expect(stripAnsi(footer.render(120)[0])).toContain("$0.000 (sub)");
+		expect(stripAnsi(footer.render(120)[1])).toContain("$0.000 (sub)");
 	});
 
 	it("does not mark generic OAuth sign-in as a subscription", () => {
@@ -247,67 +244,9 @@ describe("FooterComponent width handling", () => {
 			},
 		});
 		const footer = new FooterComponent(session, createFooterData(1));
-		const summary = stripAnsi(footer.render(120)[0]);
+		const stats = stripAnsi(footer.render(120)[1]);
 
-		expect(summary).toContain("$1.234");
-		expect(summary).not.toContain("(sub)");
-	});
-
-	it("keeps cwd and usage on the first row and model details on the second", () => {
-		const width = 100;
-		const footer = new FooterComponent(createSession({ sessionName: "" }), createFooterData(1));
-
-		const lines = footer.render(width);
-		const firstRow = stripAnsi(lines[0]!);
-		const secondRow = stripAnsi(lines[1]!);
-
-		expect(lines).toHaveLength(2);
-		expect(firstRow).toMatch(/^\/tmp\/project \(main\)/);
-		expect(firstRow).toContain("12.3%/200k (auto)");
-		expect(secondRow.endsWith("test-model")).toBe(true);
-		expect(visibleWidth(lines[0]!)).toBe(width);
-		expect(visibleWidth(lines[1]!)).toBe(width);
-	});
-
-	it("keeps footer height stable when transient status appears", () => {
-		const session = createSession({ sessionName: "" });
-		const footerData = createFooterData(1);
-		const inactiveFooter = new FooterComponent(session, footerData);
-		const activeFooter = new FooterComponent(session, footerData, {
-			render: () => ["Working..."],
-			invalidate: () => {},
-		});
-
-		const inactiveLines = inactiveFooter.render(100).map(stripAnsi);
-		const activeLines = activeFooter.render(100).map(stripAnsi);
-		expect(inactiveLines).toHaveLength(2);
-		expect(activeLines).toHaveLength(2);
-		expect(activeLines[1]).toMatch(/^Working\.\.\./);
-		expect(activeLines[1]?.endsWith("test-model")).toBe(true);
-	});
-
-	it("renders transient status left of the model and before extension statuses", () => {
-		const statusIndicator = {
-			render: () => ["Working..."],
-			invalidate: () => {},
-		};
-		const footer = new FooterComponent(
-			createSession({ sessionName: "" }),
-			createFooterData(
-				1,
-				new Map([
-					["z-last", "last"],
-					["a-first", "first"],
-				]),
-			),
-			statusIndicator,
-		);
-
-		const lines = footer.render(100).map(stripAnsi);
-
-		expect(lines).toHaveLength(3);
-		expect(lines[1]).toMatch(/^Working\.\.\./);
-		expect(lines[1]?.endsWith("test-model")).toBe(true);
-		expect(lines[2]).toBe("first last");
+		expect(stats).toContain("$1.234");
+		expect(stats).not.toContain("(sub)");
 	});
 });

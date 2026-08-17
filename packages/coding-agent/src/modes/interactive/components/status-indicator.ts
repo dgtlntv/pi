@@ -21,30 +21,37 @@ export class StatusIndicator extends Loader {
 		this.kind = kind;
 	}
 
-	override render(width: number): string[] {
-		return [truncateToWidth(super.render(width)[1] ?? "", width)];
-	}
-
 	dispose(): void {
 		this.stop();
 	}
 }
 
 export class WorkingStatusIndicator extends StatusIndicator {
-	constructor(ui: TUI, message: string, indicator?: WorkingIndicatorOptions) {
-		super(
-			"working",
-			ui,
-			(spinner) => theme.fg("accent", spinner),
-			(text) => theme.fg("accent", text),
-			message,
-			indicator,
-		);
+	private workingMessage: string;
+
+	constructor(
+		ui: TUI,
+		message: string,
+		indicator?: WorkingIndicatorOptions,
+		colorFn: (text: string) => string = (text) => theme.fg("accent", text),
+	) {
+		super("working", ui, colorFn, colorFn, message, indicator);
+		this.workingMessage = message;
 	}
 
-	override render(width: number): string[] {
-		const line = super.render(width)[0] ?? "";
-		return line.startsWith(" ") ? [`${line.slice(1)} `] : [line];
+	override setMessage(message: string): void {
+		this.workingMessage = message;
+		super.setMessage(message);
+	}
+
+	renderInBorder(width: number): string {
+		const line = super.render(width + 2)[1] ?? "";
+		return truncateToWidth(line.startsWith(" ") ? line.slice(1).trimEnd() : line.trimEnd(), width, "");
+	}
+
+	override invalidate(): void {
+		super.invalidate();
+		super.setMessage(this.workingMessage);
 	}
 }
 
@@ -117,6 +124,7 @@ export class IdleStatus implements Component {
 	}
 
 	render(width: number): string[] {
-		return [" ".repeat(width)];
+		const emptyLine = " ".repeat(width);
+		return [emptyLine, emptyLine];
 	}
 }

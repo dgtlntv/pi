@@ -1,11 +1,13 @@
-import { Editor, type EditorOptions, type EditorTheme, type TUI } from "@earendil-works/pi-tui";
+import { Editor, type EditorOptions, type EditorTheme, type TUI, visibleWidth } from "@earendil-works/pi-tui";
 import type { AppKeybinding, KeybindingsManager } from "../../../core/keybindings.ts";
+import type { WorkingStatusIndicator } from "./status-indicator.ts";
 
 /**
  * Custom editor that handles app-level keybindings for coding-agent.
  */
 export class CustomEditor extends Editor {
 	private keybindings: KeybindingsManager;
+	private workingStatusIndicator: WorkingStatusIndicator | undefined;
 	public actionHandlers: Map<AppKeybinding, () => void> = new Map();
 
 	// Special handlers that can be dynamically replaced
@@ -18,6 +20,25 @@ export class CustomEditor extends Editor {
 	constructor(tui: TUI, theme: EditorTheme, keybindings: KeybindingsManager, options?: EditorOptions) {
 		super(tui, theme, options);
 		this.keybindings = keybindings;
+	}
+
+	setWorkingStatusIndicator(indicator: WorkingStatusIndicator | undefined): void {
+		this.workingStatusIndicator = indicator;
+	}
+
+	override render(width: number): string[] {
+		const lines = super.render(width);
+		const availableStatusWidth = width - 5;
+		if (!this.workingStatusIndicator || lines.length === 0 || availableStatusWidth <= 0) return lines;
+
+		const status = this.workingStatusIndicator.renderInBorder(availableStatusWidth);
+		const statusWidth = visibleWidth(status);
+		if (statusWidth === 0) return lines;
+
+		const trailingBorderWidth = width - 4 - statusWidth;
+		lines[0] =
+			this.borderColor("── ") + status + this.borderColor(` ${"─".repeat(Math.max(1, trailingBorderWidth))}`);
+		return lines;
 	}
 
 	/**
