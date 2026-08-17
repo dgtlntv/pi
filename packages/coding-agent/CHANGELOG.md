@@ -4,7 +4,7 @@
 
 ### Breaking Changes
 
-- Themes must now define a `background` color, which temporarily controls the terminal background in regular and fullscreen modes and restores the previous color on exit or suspension.
+- Themes must now define a `background` color, which temporarily controls the terminal background in regular and fullscreen modes; explicit `text` colors also control the terminal foreground, and both previous colors are restored on exit or suspension.
 
 ### Added
 - Added a hoverable and clickable “Jump to latest message” indicator whenever the fullscreen transcript is scrolled up, including its configured jump-to-bottom shortcut.
@@ -12,6 +12,7 @@
 
 ### Changed
 
+- Changed explicit theme `text` colors to become the terminal's temporary default foreground so unstyled text and ANSI resets remain readable against the themed background.
 - Moved the streaming working indicator into the editor border and matched its default spinner and label to the thinking-level border color.
 - Changed fullscreen scrollbars to reveal on pointer entry, use dedicated required `scrollbarTrack` and `scrollbarThumb` theme colors, keep one thumb color across normal and expanded states, and support track-click jumping.
 

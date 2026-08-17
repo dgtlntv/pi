@@ -2,6 +2,7 @@ import assert from "node:assert";
 import { describe, it } from "node:test";
 import {
 	type Component,
+	parseOsc10ForegroundColor,
 	parseOsc11BackgroundColor,
 	parseTerminalColorSchemeReport,
 	type Terminal,
@@ -90,6 +91,17 @@ class InputRecorder implements Component {
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+describe("parseOsc10ForegroundColor", () => {
+	it("parses OSC 10 foreground responses", () => {
+		assert.deepStrictEqual(parseOsc10ForegroundColor("\x1b]10;rgb:1f1f/2323/2828\x07"), {
+			r: 31,
+			g: 35,
+			b: 40,
+		});
+		assert.strictEqual(parseOsc10ForegroundColor("\x1b]11;#1f2328\x07"), undefined);
+	});
+});
+
 describe("parseOsc11BackgroundColor", () => {
 	it("parses 16-bit OSC 11 rgb responses", () => {
 		assert.deepStrictEqual(parseOsc11BackgroundColor("\x1b]11;rgb:0000/8000/ffff\x07"), {
@@ -123,45 +135,70 @@ describe("parseTerminalColorSchemeReport", () => {
 	});
 });
 
-describe("TUI.setTerminalBackgroundColor", () => {
-	it("captures, overrides, updates, and restores the terminal background", async () => {
+describe("TUI.setTerminalColors", () => {
+	it("captures, overrides, updates, and restores terminal foreground and background", async () => {
 		const terminal = new TestTerminal();
 		const tui: TUI = new TuiMainScreen(terminal);
 		tui.start();
 
-		const initialOverride = tui.setTerminalBackgroundColor({ r: 24, g: 24, b: 30 });
+		const initialOverride = tui.setTerminalColors({
+			foreground: { r: 31, g: 35, b: 40 },
+			background: { r: 248, g: 248, b: 248 },
+		});
+		assert.ok(terminal.writes.includes("\x1b]10;?\x07"));
+		terminal.sendInput("\x1b]10;#aabbcc\x07");
+		await wait(0);
 		assert.ok(terminal.writes.includes("\x1b]11;?\x07"));
 		terminal.sendInput("\x1b]11;#010203\x07");
 		await initialOverride;
-		assert.ok(terminal.writes.includes("\x1b]11;#18181e\x07"));
-
-		await tui.setTerminalBackgroundColor({ r: 248, g: 248, b: 248 });
+		assert.ok(terminal.writes.includes("\x1b]10;#1f2328\x07"));
 		assert.ok(terminal.writes.includes("\x1b]11;#f8f8f8\x07"));
+
+		await tui.setTerminalColors({
+			foreground: { r: 212, g: 212, b: 212 },
+			background: { r: 24, g: 24, b: 30 },
+		});
+		assert.ok(terminal.writes.includes("\x1b]10;#d4d4d4\x07"));
+		assert.ok(terminal.writes.includes("\x1b]11;#18181e\x07"));
+		assert.strictEqual(terminal.writes.filter((write) => write === "\x1b]10;?\x07").length, 1);
 		assert.strictEqual(terminal.writes.filter((write) => write === "\x1b]11;?\x07").length, 1);
 
 		tui.stop();
-		assert.strictEqual(terminal.writes.at(-1), "\x1b]11;#010203\x07");
+		assert.deepStrictEqual(terminal.writes.slice(-2), ["\x1b]10;#aabbcc\x07", "\x1b]11;#010203\x07"]);
 
-		const overrideCount = terminal.writes.filter((write) => write === "\x1b]11;#f8f8f8\x07").length;
+		const foregroundOverrideCount = terminal.writes.filter((write) => write === "\x1b]10;#d4d4d4\x07").length;
+		const backgroundOverrideCount = terminal.writes.filter((write) => write === "\x1b]11;#18181e\x07").length;
 		const unrelatedTui: TUI = new TuiMainScreen(terminal);
 		unrelatedTui.start();
 		unrelatedTui.stop();
-		assert.strictEqual(terminal.writes.filter((write) => write === "\x1b]11;#f8f8f8\x07").length, overrideCount);
+		assert.strictEqual(
+			terminal.writes.filter((write) => write === "\x1b]10;#d4d4d4\x07").length,
+			foregroundOverrideCount,
+		);
+		assert.strictEqual(
+			terminal.writes.filter((write) => write === "\x1b]11;#18181e\x07").length,
+			backgroundOverrideCount,
+		);
 	});
 
-	it("keeps the override during renderer handoff and restores it after the final stop", async () => {
+	it("keeps overrides during renderer handoff and restores them after the final stop", async () => {
 		const terminal = new TestTerminal();
 		const tui: TUI = new TuiMainScreen(terminal);
 		tui.start();
-		const override = tui.setTerminalBackgroundColor({ r: 24, g: 24, b: 30 });
+		const override = tui.setTerminalColors({
+			foreground: { r: 212, g: 212, b: 212 },
+			background: { r: 24, g: 24, b: 30 },
+		});
+		terminal.sendInput("\x1b]10;#aabbcc\x07");
+		await wait(0);
 		terminal.sendInput("\x1b]11;#010203\x07");
 		await override;
 
-		tui.stop({ preserveTerminalBackground: true });
-		assert.notStrictEqual(terminal.writes.at(-1), "\x1b]11;#010203\x07");
+		tui.stop({ preserveTerminalColors: true });
+		assert.notDeepStrictEqual(terminal.writes.slice(-2), ["\x1b]10;#aabbcc\x07", "\x1b]11;#010203\x07"]);
 		tui.start();
 		tui.stop();
-		assert.strictEqual(terminal.writes.at(-1), "\x1b]11;#010203\x07");
+		assert.deepStrictEqual(terminal.writes.slice(-2), ["\x1b]10;#aabbcc\x07", "\x1b]11;#010203\x07"]);
 	});
 });
 

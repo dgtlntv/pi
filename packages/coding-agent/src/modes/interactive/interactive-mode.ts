@@ -155,6 +155,7 @@ import { editInExternalEditor } from "./external-editor.ts";
 import { refreshModelCatalogs } from "./model-catalog-refresh.ts";
 import { getModelSearchText } from "./model-search.ts";
 import {
+	applyThemeTerminalColors,
 	type FullscreenPadding,
 	getAvailableThemes,
 	getAvailableThemesWithPaths,
@@ -834,7 +835,7 @@ export class InteractiveMode {
 			this.mainScreenRenderState = previousUi.captureRenderState();
 		}
 
-		previousUi.stop({ preserveScreen: true, preserveTerminalBackground: true });
+		previousUi.stop({ preserveScreen: true, preserveTerminalColors: true });
 		previousUi.setFocus(null);
 		previousUi.clear();
 		if (TuiLayouts.isViewportTUI(previousUi)) previousUi.setLayoutRoot(undefined);
@@ -859,7 +860,7 @@ export class InteractiveMode {
 		nextUi.setFocus(focus);
 		if (!startRenderer) return true;
 		nextUi.start();
-		void nextUi.setTerminalBackgroundColor(theme.getTerminalBackgroundColor());
+		void applyThemeTerminalColors(nextUi);
 		this.themeController.rebindTui();
 		this.rebindExtensionTerminalInputListeners();
 		if (
@@ -1022,7 +1023,7 @@ export class InteractiveMode {
 
 		// Set up theme file watcher
 		onThemeChange(() => {
-			void this.ui.setTerminalBackgroundColor(theme.getTerminalBackgroundColor());
+			void applyThemeTerminalColors(this.ui);
 			this.ui.invalidate();
 			this.updateEditorBorderColor();
 			this.ui.requestRender();

@@ -8,7 +8,7 @@ function createUi() {
 	const queryTerminalBackgroundColor = vi.fn();
 	const queryTerminalColorScheme = vi.fn();
 	const setTerminalColorSchemeNotifications = vi.fn();
-	const setTerminalBackgroundColor = vi.fn().mockResolvedValue(undefined);
+	const setTerminalColors = vi.fn().mockResolvedValue(undefined);
 	let terminalColorSchemeListener: ((terminalTheme: TerminalTheme) => void) | undefined;
 	const ui = {
 		invalidate: vi.fn(),
@@ -20,14 +20,14 @@ function createUi() {
 		}),
 		queryTerminalBackgroundColor,
 		queryTerminalColorScheme,
-		setTerminalBackgroundColor,
+		setTerminalColors,
 	} as unknown as TUI;
 	return {
 		ui,
 		queryTerminalBackgroundColor,
 		queryTerminalColorScheme,
 		setTerminalColorSchemeNotifications,
-		setTerminalBackgroundColor,
+		setTerminalColors,
 		emitTerminalColorScheme: (terminalTheme: TerminalTheme) => terminalColorSchemeListener?.(terminalTheme),
 	};
 }
@@ -48,7 +48,7 @@ afterEach(() => {
 
 describe("InteractiveThemeController", () => {
 	it("uses the initial theme without persisting it", async () => {
-		const { ui, queryTerminalBackgroundColor, setTerminalBackgroundColor } = createUi();
+		const { ui, queryTerminalBackgroundColor, setTerminalColors } = createUi();
 		const manager = SettingsManager.inMemory({ theme: "dark" });
 		const setTheme = vi.spyOn(manager, "setTheme");
 		const flush = vi.spyOn(manager, "flush");
@@ -59,7 +59,10 @@ describe("InteractiveThemeController", () => {
 		await controller.applyFromSettings();
 
 		expect(queryTerminalBackgroundColor).not.toHaveBeenCalled();
-		expect(setTerminalBackgroundColor).toHaveBeenCalledWith({ r: 248, g: 248, b: 248 });
+		expect(setTerminalColors).toHaveBeenCalledWith({
+			foreground: { r: 31, g: 35, b: 40 },
+			background: { r: 248, g: 248, b: 248 },
+		});
 		expect(setTheme).not.toHaveBeenCalled();
 		expect(flush).not.toHaveBeenCalled();
 	});
@@ -70,7 +73,7 @@ describe("InteractiveThemeController", () => {
 			ui,
 			queryTerminalColorScheme,
 			setTerminalColorSchemeNotifications,
-			setTerminalBackgroundColor,
+			setTerminalColors,
 			emitTerminalColorScheme,
 		} = createUi();
 		queryTerminalColorScheme.mockResolvedValue("light");
@@ -84,7 +87,10 @@ describe("InteractiveThemeController", () => {
 
 		emitTerminalColorScheme("dark");
 		expect(theme.name).toBe("dark");
-		expect(setTerminalBackgroundColor).toHaveBeenLastCalledWith({ r: 24, g: 24, b: 30 });
+		expect(setTerminalColors).toHaveBeenLastCalledWith({
+			foreground: { r: 212, g: 212, b: 212 },
+			background: { r: 24, g: 24, b: 30 },
+		});
 	});
 
 	it("detects the current terminal appearance when selecting a theme pair", async () => {

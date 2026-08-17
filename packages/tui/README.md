@@ -78,6 +78,19 @@ tui.requestRender(); // Request a re-render
 tui.onDebug = () => console.log("Debug triggered");
 ```
 
+### Terminal colors
+
+Temporarily override the terminal's default foreground and background. The TUI captures the original dynamic colors and restores them when it stops:
+
+```typescript
+await tui.setTerminalColors({
+  foreground: { r: 31, g: 35, b: 40 },
+  background: { r: 248, g: 248, b: 248 },
+});
+```
+
+Use `stop({ preserveTerminalColors: true })` only when another TUI using the same terminal immediately takes over.
+
 ### Alternate-screen viewport layouts
 
 `TuiAltScreen` can render an explicit terminal-height layout. `VStack` and `HStack` allocate constrained regions, while `ScrollView` owns scrolling for one region. These semantics are intentionally unavailable on `TuiMainScreen`, where the terminal owns scrollback.

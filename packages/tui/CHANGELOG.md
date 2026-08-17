@@ -4,7 +4,7 @@
 
 ### Added
 
-- Added a terminal background override API that captures and restores the previous dynamic background across TUI lifecycle and renderer handoffs.
+- Added a terminal foreground/background override API that captures and restores the previous dynamic colors across TUI lifecycle and renderer handoffs.
 - Added an optional hoverable and clickable alternate-screen jump-to-end indicator that remains visible while the primary scroll view is scrolled up.
 - Added independently configurable per-side viewport padding to the alternate-screen renderer, with edge-aligned primary scrollbars and optional full-width horizontal rules.
 

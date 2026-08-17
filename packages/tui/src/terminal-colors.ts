@@ -25,15 +25,20 @@ function parseOscHexChannel(channel: string): number | undefined {
 	return Math.round((parseInt(channel, 16) / max) * 255);
 }
 
+const OSC10_FOREGROUND_COLOR_RESPONSE_PATTERN = /^\x1b\]10;([^\x07\x1b]*)(?:\x07|\x1b\\)$/i;
 const OSC11_BACKGROUND_COLOR_RESPONSE_PATTERN = /^\x1b\]11;([^\x07\x1b]*)(?:\x07|\x1b\\)$/i;
 const COLOR_SCHEME_REPORT_PATTERN = /^(?:\x1b\[\?997;(1|2)n)+$/;
+
+export function isOsc10ForegroundColorResponse(data: string): boolean {
+	return OSC10_FOREGROUND_COLOR_RESPONSE_PATTERN.test(data);
+}
 
 export function isOsc11BackgroundColorResponse(data: string): boolean {
 	return OSC11_BACKGROUND_COLOR_RESPONSE_PATTERN.test(data);
 }
 
-export function parseOsc11BackgroundColor(data: string): RgbColor | undefined {
-	const match = data.match(OSC11_BACKGROUND_COLOR_RESPONSE_PATTERN);
+function parseOscColor(data: string, pattern: RegExp): RgbColor | undefined {
+	const match = data.match(pattern);
 	if (!match) {
 		return undefined;
 	}
@@ -62,6 +67,14 @@ export function parseOsc11BackgroundColor(data: string): RgbColor | undefined {
 	const g = parseOscHexChannel(green);
 	const b = parseOscHexChannel(blue);
 	return r !== undefined && g !== undefined && b !== undefined ? { r, g, b } : undefined;
+}
+
+export function parseOsc10ForegroundColor(data: string): RgbColor | undefined {
+	return parseOscColor(data, OSC10_FOREGROUND_COLOR_RESPONSE_PATTERN);
+}
+
+export function parseOsc11BackgroundColor(data: string): RgbColor | undefined {
+	return parseOscColor(data, OSC11_BACKGROUND_COLOR_RESPONSE_PATTERN);
 }
 
 export function parseTerminalColorSchemeReport(data: string): TerminalColorScheme | undefined {

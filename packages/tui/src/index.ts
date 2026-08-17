@@ -80,6 +80,7 @@ export { StdinBuffer, type StdinBufferEventMap, type StdinBufferOptions } from "
 export { ProcessTerminal, type Terminal } from "./terminal.ts";
 // Terminal colors
 export {
+	parseOsc10ForegroundColor,
 	parseOsc11BackgroundColor,
 	parseTerminalColorSchemeReport,
 	type RgbColor,
@@ -127,6 +128,7 @@ export {
 	type OverlayOptions,
 	type OverlayUnfocusOptions,
 	type SizeValue,
+	type TerminalColors,
 	type TUI,
 	type TuiInputListener,
 	type TuiInputListenerResult,

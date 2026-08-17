@@ -8,7 +8,9 @@ import { performance } from "node:perf_hooks";
 import { isKeyRelease, matchesKey } from "./keys.ts";
 import type { Terminal } from "./terminal.ts";
 import {
+	isOsc10ForegroundColorResponse,
 	isOsc11BackgroundColorResponse,
+	parseOsc10ForegroundColor,
 	parseOsc11BackgroundColor,
 	parseTerminalColorSchemeReport,
 	type RgbColor,
@@ -48,13 +50,13 @@ export interface Component {
 
 export type TuiInputListenerResult = { consume?: boolean; data?: string } | undefined;
 export type TuiInputListener = (data: string) => TuiInputListenerResult;
-type PendingOsc11BackgroundQuery = {
+type PendingTerminalColorQuery = {
 	settled: boolean;
 	resolve: ((rgb: RgbColor | undefined) => void) | undefined;
 	timer: NodeJS.Timeout | undefined;
 };
 
-type TerminalBackgroundState = {
+type TerminalColorState = {
 	original: RgbColor | undefined;
 	originalCaptured: boolean;
 	capturePromise: Promise<void> | undefined;
@@ -62,10 +64,11 @@ type TerminalBackgroundState = {
 	applied: RgbColor | undefined;
 };
 
-const terminalBackgroundStates = new WeakMap<Terminal, TerminalBackgroundState>();
+const terminalForegroundStates = new WeakMap<Terminal, TerminalColorState>();
+const terminalBackgroundStates = new WeakMap<Terminal, TerminalColorState>();
 
-function getTerminalBackgroundState(terminal: Terminal): TerminalBackgroundState {
-	let state = terminalBackgroundStates.get(terminal);
+function getTerminalColorState(states: WeakMap<Terminal, TerminalColorState>, terminal: Terminal): TerminalColorState {
+	let state = states.get(terminal);
 	if (!state) {
 		state = {
 			original: undefined,
@@ -74,7 +77,7 @@ function getTerminalBackgroundState(terminal: Terminal): TerminalBackgroundState
 			captureRevision: 0,
 			applied: undefined,
 		};
-		terminalBackgroundStates.set(terminal, state);
+		states.set(terminal, state);
 	}
 	return state;
 }
@@ -83,11 +86,12 @@ function equalRgb(left: RgbColor | undefined, right: RgbColor | undefined): bool
 	return left?.r === right?.r && left?.g === right?.g && left?.b === right?.b;
 }
 
-function setTerminalBackgroundSequence(color: RgbColor): string {
+function setTerminalColorSequence(slot: 10 | 11, color: RgbColor): string {
 	const hex = (channel: number) => channel.toString(16).padStart(2, "0");
-	return `\x1b]11;#${hex(color.r)}${hex(color.g)}${hex(color.b)}\x07`;
+	return `\x1b]${slot};#${hex(color.r)}${hex(color.g)}${hex(color.b)}\x07`;
 }
 
+const RESET_TERMINAL_FOREGROUND = "\x1b]110\x07";
 const RESET_TERMINAL_BACKGROUND = "\x1b]111\x07";
 
 /**
@@ -322,8 +326,13 @@ export type TuiMode = "regular" | "fullscreen";
 export interface TuiStopOptions {
 	/** Leave renderer output in place for another TUI taking over the same terminal. */
 	preserveScreen?: boolean;
-	/** Keep the terminal background override active while another TUI takes over the same terminal. */
-	preserveTerminalBackground?: boolean;
+	/** Keep terminal foreground/background overrides active while another TUI takes over the same terminal. */
+	preserveTerminalColors?: boolean;
+}
+
+export interface TerminalColors {
+	foreground?: RgbColor;
+	background?: RgbColor;
 }
 
 export interface TUI extends Component {
@@ -351,7 +360,8 @@ export interface TUI extends Component {
 	removeInputListener(listener: TuiInputListener): void;
 	onTerminalColorSchemeChange(listener: (scheme: TerminalColorScheme) => void): () => void;
 	setTerminalColorSchemeNotifications(enabled: boolean): void;
-	setTerminalBackgroundColor(color: RgbColor | undefined): Promise<void>;
+	setTerminalColors(colors: TerminalColors | undefined): Promise<void>;
+	queryTerminalForegroundColor(options: { timeoutMs: number }): Promise<RgbColor | undefined>;
 	queryTerminalBackgroundColor(options: { timeoutMs: number }): Promise<RgbColor | undefined>;
 	queryTerminalColorScheme(options: { timeoutMs: number }): Promise<TerminalColorScheme | undefined>;
 }
@@ -384,11 +394,15 @@ export abstract class TuiBase extends Container implements TUI {
 	private clearOnShrink = process.env.PI_CLEAR_ON_SHRINK === "1";
 	protected fullRedrawCount = 0;
 	protected stopped = false;
+	private pendingOsc10ForegroundReplies = 0;
+	private pendingOsc10ForegroundQueries: PendingTerminalColorQuery[] = [];
 	private pendingOsc11BackgroundReplies = 0;
-	private pendingOsc11BackgroundQueries: PendingOsc11BackgroundQuery[] = [];
+	private pendingOsc11BackgroundQueries: PendingTerminalColorQuery[] = [];
 	private terminalColorSchemeListeners = new Set<(scheme: TerminalColorScheme) => void>();
 	private terminalColorSchemeNotificationsEnabled = false;
+	private desiredTerminalForeground: RgbColor | undefined;
 	private desiredTerminalBackground: RgbColor | undefined;
+	private terminalForegroundRevision = 0;
 	private terminalBackgroundRevision = 0;
 	protected readonly logDirectory: string;
 
@@ -743,13 +757,11 @@ export abstract class TuiBase extends Container implements TUI {
 			(data) => this.handleTerminalInput(data),
 			() => this.requestRender(),
 		);
-		const backgroundState = getTerminalBackgroundState(this.terminal);
-		if (this.desiredTerminalBackground) {
-			if (backgroundState.originalCaptured) {
-				this.applyTerminalBackground(backgroundState, this.desiredTerminalBackground);
-			} else {
-				void this.setTerminalBackgroundColor(this.desiredTerminalBackground);
-			}
+		if (this.desiredTerminalForeground || this.desiredTerminalBackground) {
+			void this.setTerminalColors({
+				foreground: this.desiredTerminalForeground,
+				background: this.desiredTerminalBackground,
+			});
 		}
 		this.afterTerminalStart();
 		this.terminal.hideCursor();
@@ -808,7 +820,10 @@ export abstract class TuiBase extends Container implements TUI {
 		this.terminal.showCursor();
 		this.terminal.stop();
 		this.afterTerminalStop(options);
-		if (!options.preserveTerminalBackground) this.restoreTerminalBackground();
+		if (!options.preserveTerminalColors) {
+			this.restoreTerminalForeground();
+			this.restoreTerminalBackground();
+		}
 	}
 
 	renderNow(force = false): void {
@@ -874,6 +889,9 @@ export abstract class TuiBase extends Container implements TUI {
 	}
 
 	private handleTerminalInput(data: string): void {
+		if (this.consumeOsc10ForegroundResponse(data)) {
+			return;
+		}
 		if (this.consumeOsc11BackgroundResponse(data)) {
 			return;
 		}
@@ -949,6 +967,30 @@ export abstract class TuiBase extends Container implements TUI {
 			// where even setTimeout(0) can take a full 16 ms tick on Windows.
 			this.requestImmediateRender();
 		}
+	}
+
+	private consumeOsc10ForegroundResponse(data: string): boolean {
+		if (this.pendingOsc10ForegroundReplies <= 0) {
+			return false;
+		}
+
+		if (!isOsc10ForegroundColorResponse(data)) {
+			return false;
+		}
+
+		const rgb = parseOsc10ForegroundColor(data);
+		this.pendingOsc10ForegroundReplies -= 1;
+		const query = this.pendingOsc10ForegroundQueries.shift();
+		if (query && !query.settled) {
+			query.settled = true;
+			if (query.timer) {
+				clearTimeout(query.timer);
+				query.timer = undefined;
+			}
+			query.resolve?.(rgb);
+			query.resolve = undefined;
+		}
+		return true;
 	}
 
 	private consumeOsc11BackgroundResponse(data: string): boolean {
@@ -1262,11 +1304,47 @@ export abstract class TuiBase extends Container implements TUI {
 	}
 
 	/**
-	 * Temporarily override the terminal's default background color with OSC 11.
-	 * The original color is captured before the first override and restored when the TUI stops.
+	 * Temporarily override the terminal's default foreground and background colors.
+	 * Original colors are captured before the first override and restored when the TUI stops.
 	 */
-	async setTerminalBackgroundColor(color: RgbColor | undefined): Promise<void> {
-		const state = getTerminalBackgroundState(this.terminal);
+	async setTerminalColors(colors: TerminalColors | undefined): Promise<void> {
+		// Query sequentially because some terminals return adjacent OSC replies in one input chunk.
+		await this.setTerminalForegroundColor(colors?.foreground);
+		await this.setTerminalBackgroundColor(colors?.background);
+	}
+
+	private async setTerminalForegroundColor(color: RgbColor | undefined): Promise<void> {
+		const state = getTerminalColorState(terminalForegroundStates, this.terminal);
+		this.desiredTerminalForeground = color ? { ...color } : undefined;
+		const revision = ++this.terminalForegroundRevision;
+		if (!color) {
+			this.restoreTerminalForeground();
+			return;
+		}
+
+		if (!state.originalCaptured) {
+			if (!state.capturePromise) {
+				const captureRevision = state.captureRevision;
+				state.capturePromise = this.queryTerminalForegroundColor({ timeoutMs: 100 })
+					.then((original) => {
+						if (captureRevision !== state.captureRevision) return;
+						state.original = original;
+						state.originalCaptured = true;
+					})
+					.catch(() => {
+						if (captureRevision !== state.captureRevision) return;
+						state.original = undefined;
+						state.originalCaptured = true;
+					});
+			}
+			await state.capturePromise;
+		}
+		if (this.stopped || revision !== this.terminalForegroundRevision || !this.desiredTerminalForeground) return;
+		this.applyTerminalColor(state, 10, this.desiredTerminalForeground);
+	}
+
+	private async setTerminalBackgroundColor(color: RgbColor | undefined): Promise<void> {
+		const state = getTerminalColorState(terminalBackgroundStates, this.terminal);
 		this.desiredTerminalBackground = color ? { ...color } : undefined;
 		const revision = ++this.terminalBackgroundRevision;
 		if (!color) {
@@ -1292,27 +1370,59 @@ export abstract class TuiBase extends Container implements TUI {
 			await state.capturePromise;
 		}
 		if (this.stopped || revision !== this.terminalBackgroundRevision || !this.desiredTerminalBackground) return;
-		this.applyTerminalBackground(state, this.desiredTerminalBackground);
+		this.applyTerminalColor(state, 11, this.desiredTerminalBackground);
 	}
 
-	private applyTerminalBackground(state: TerminalBackgroundState, color: RgbColor): void {
+	private applyTerminalColor(state: TerminalColorState, slot: 10 | 11, color: RgbColor): void {
 		if (equalRgb(state.applied, color)) return;
-		this.terminal.write(setTerminalBackgroundSequence(color));
+		this.terminal.write(setTerminalColorSequence(slot, color));
 		state.applied = { ...color };
 	}
 
+	private restoreTerminalForeground(): void {
+		this.restoreTerminalColor(terminalForegroundStates, 10, RESET_TERMINAL_FOREGROUND);
+	}
+
 	private restoreTerminalBackground(): void {
-		const state = getTerminalBackgroundState(this.terminal);
+		this.restoreTerminalColor(terminalBackgroundStates, 11, RESET_TERMINAL_BACKGROUND);
+	}
+
+	private restoreTerminalColor(
+		states: WeakMap<Terminal, TerminalColorState>,
+		slot: 10 | 11,
+		resetSequence: string,
+	): void {
+		const state = getTerminalColorState(states, this.terminal);
 		if (state.applied) {
-			this.terminal.write(
-				state.original ? setTerminalBackgroundSequence(state.original) : RESET_TERMINAL_BACKGROUND,
-			);
+			this.terminal.write(state.original ? setTerminalColorSequence(slot, state.original) : resetSequence);
 			state.applied = undefined;
 		}
 		state.original = undefined;
 		state.originalCaptured = false;
 		state.capturePromise = undefined;
 		state.captureRevision += 1;
+	}
+
+	/** Query the terminal's default foreground color with OSC 10 (`ESC ] 10 ; ? BEL`). */
+	queryTerminalForegroundColor({ timeoutMs }: { timeoutMs: number }): Promise<RgbColor | undefined> {
+		return new Promise((resolve) => {
+			const query: PendingTerminalColorQuery = {
+				settled: false,
+				resolve,
+				timer: undefined,
+			};
+
+			query.timer = setTimeout(() => {
+				if (query.settled) return;
+				query.settled = true;
+				query.timer = undefined;
+				query.resolve?.(undefined);
+				query.resolve = undefined;
+			}, timeoutMs);
+			this.pendingOsc10ForegroundQueries.push(query);
+			this.pendingOsc10ForegroundReplies += 1;
+			this.terminal.write("\x1b]10;?\x07");
+		});
 	}
 
 	/**
@@ -1322,7 +1432,7 @@ export abstract class TuiBase extends Container implements TUI {
 	 */
 	queryTerminalBackgroundColor({ timeoutMs }: { timeoutMs: number }): Promise<RgbColor | undefined> {
 		return new Promise((resolve) => {
-			const query: PendingOsc11BackgroundQuery = {
+			const query: PendingTerminalColorQuery = {
 				settled: false,
 				resolve,
 				timer: undefined,

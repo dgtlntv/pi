@@ -80,6 +80,7 @@ vim ~/.pi/agent/themes/my-theme.json
   "vars": {
     "primary": "#00aaff",
     "secondary": 242,
+    "text": "#d4d4d4",
     "background": "#18181e"
   },
   "colors": {
@@ -93,7 +94,7 @@ vim ~/.pi/agent/themes/my-theme.json
     "warning": "#ffff00",
     "muted": "secondary",
     "dim": 240,
-    "text": "",
+    "text": "text",
     "thinkingText": "secondary",
     "selectedBg": "#2d2d30",
     "scrollbarTrack": "secondary",
@@ -162,12 +163,13 @@ vim ~/.pi/agent/themes/my-theme.json
   },
   "vars": {
     "blue": "#0066cc",
-    "gray": 242
+    "gray": 242,
+    "text": "#d4d4d4"
   },
   "colors": {
     "accent": "blue",
     "muted": "gray",
-    "text": "",
+    "text": "text",
     "background": "#18181e",
     ...
   }
@@ -198,7 +200,7 @@ Every theme must define all 54 required color tokens. The optional tokens preser
 | `warning` | Warning states |
 | `muted` | Secondary text |
 | `dim` | Tertiary text |
-| `text` | Default text (usually `""`) |
+| `text` | Default text and, when explicit, terminal foreground while Pi runs |
 | `thinkingText` | Thinking block text |
 | `scrollbarTrack` | Fullscreen scrollbar track foreground |
 | `scrollbarThumb` | Fullscreen scrollbar thumb foreground, shared by normal and expanded states |
@@ -314,7 +316,7 @@ Four formats are supported:
 
 Pi uses 24-bit RGB colors. Most modern terminals support this (iTerm2, Kitty, WezTerm, Windows Terminal, VS Code). For older terminals with only 256-color support, pi falls back to the nearest approximation.
 
-While interactive mode is active, pi temporarily sets the terminal's default background to the theme's `background` color in both regular and fullscreen modes. It restores the previous terminal background on exit or suspension. Terminals without dynamic-color support ignore this change.
+While interactive mode is active, Pi temporarily sets the terminal's default background to `background` and, when `text` is explicit, its default foreground to `text` in both regular and fullscreen modes. This also colors otherwise unstyled text and ANSI foreground resets. Pi restores both terminal colors on exit or suspension. A `text` value of `""` preserves the terminal's existing default foreground. Terminals without dynamic-color support ignore these changes.
 
 Check truecolor support:
 

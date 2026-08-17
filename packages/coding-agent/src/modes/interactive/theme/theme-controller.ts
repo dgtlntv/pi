@@ -1,6 +1,7 @@
 import type { TUI } from "@earendil-works/pi-tui";
 import type { SettingsManager } from "../../../core/settings-manager.ts";
 import {
+	applyThemeTerminalColors,
 	detectTerminalBackgroundFromEnv,
 	detectTerminalBackgroundTheme,
 	detectTerminalThemeForAuto,
@@ -11,7 +12,6 @@ import {
 	setThemeInstance,
 	type TerminalTheme,
 	type Theme,
-	theme,
 } from "./theme.ts";
 
 type ThemeResult = { success: boolean; error?: string };
@@ -111,7 +111,7 @@ export class InteractiveThemeController {
 		const themeName = resolveThemeSetting(themeSettingOrName, this.terminalTheme) ?? this.activeThemeName;
 		if (!themeName) return;
 		if (setTheme(themeName, true).success) {
-			void this.ui.setTerminalBackgroundColor(theme.getTerminalBackgroundColor());
+			void applyThemeTerminalColors(this.ui);
 			this.ui.invalidate();
 			this.ui.requestRender();
 		}
@@ -136,7 +136,7 @@ export class InteractiveThemeController {
 	}
 
 	private notifyChanged(): void {
-		void this.ui.setTerminalBackgroundColor(theme.getTerminalBackgroundColor());
+		void applyThemeTerminalColors(this.ui);
 		this.ui.invalidate();
 		this.onChanged();
 	}

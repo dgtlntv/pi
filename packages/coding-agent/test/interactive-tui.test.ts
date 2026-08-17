@@ -147,9 +147,14 @@ describe("createInteractiveTui", () => {
 
 		renderer.start();
 		await terminal.waitForRender();
-		const backgroundOverride = stableUi.setTerminalBackgroundColor({ r: 24, g: 24, b: 30 });
+		const colorOverride = stableUi.setTerminalColors({
+			foreground: { r: 212, g: 212, b: 212 },
+			background: { r: 24, g: 24, b: 30 },
+		});
+		terminal.sendInput("\x1b]10;#aabbcc\x07");
+		await new Promise((resolve) => setTimeout(resolve, 0));
 		terminal.sendInput("\x1b]11;#010203\x07");
-		await backgroundOverride;
+		await colorOverride;
 		expect(switchTuiMode.call(context, "fullscreen", false)).toBe(true);
 		await terminal.waitForRender();
 
@@ -159,12 +164,14 @@ describe("createInteractiveTui", () => {
 		expect(component.focused).toBe(true);
 		expect(invalidatedModes).toEqual(["fullscreen"]);
 		expect([terminal.startCount, terminal.stopCount]).toEqual([2, 1]);
+		expect(terminal.writes.filter((write) => write === "\x1b]10;#aabbcc\x07")).toHaveLength(0);
 		expect(terminal.writes.filter((write) => write === "\x1b]11;#010203\x07")).toHaveLength(0);
 
 		stopInteractiveTui.call(context, "resume-hint");
 
 		expect(stableUi.mode).toBe("fullscreen");
 		expect([terminal.startCount, terminal.stopCount]).toEqual([2, 2]);
+		expect(terminal.writes.filter((write) => write === "\x1b]10;#aabbcc\x07")).toHaveLength(1);
 		expect(terminal.writes.filter((write) => write === "\x1b]11;#010203\x07")).toHaveLength(1);
 	});
 });

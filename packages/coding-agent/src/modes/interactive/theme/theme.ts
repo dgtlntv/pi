@@ -8,6 +8,7 @@ import {
 	type RgbColor,
 	type SelectListTheme,
 	type SettingsListTheme,
+	type TUI,
 } from "@earendil-works/pi-tui";
 import chalk from "chalk";
 import { type Static, Type } from "typebox";
@@ -374,6 +375,7 @@ export class Theme {
 	sourceInfo?: SourceInfo;
 	private fgColors: Map<ThemeColor, string>;
 	private bgColors: Map<ThemeBg, string>;
+	private textColor: string | number;
 	private backgroundColor: string | number;
 	private mode: ColorMode;
 
@@ -395,6 +397,7 @@ export class Theme {
 		this.fullscreenPadding = { ...DEFAULT_FULLSCREEN_PADDING, ...options.fullscreenPadding };
 		this.sourceInfo = options.sourceInfo;
 		this.mode = mode;
+		this.textColor = fgColors.text;
 		this.fgColors = new Map();
 		const colors = {
 			...fgColors,
@@ -458,6 +461,12 @@ export class Theme {
 		const ansi = this.bgColors.get(color);
 		if (!ansi) throw new Error(`Unknown theme background color: ${color}`);
 		return ansi;
+	}
+
+	getTerminalForegroundColor(): RgbColor | undefined {
+		const value = this.textColor;
+		if (value === "") return undefined;
+		return hexToRgb(typeof value === "number" ? ansi256ToHex(value) : value);
 	}
 
 	getTerminalBackgroundColor(): RgbColor {
@@ -885,6 +894,13 @@ export const theme: Theme = new Proxy({} as Theme, {
 		return (t as unknown as Record<string | symbol, unknown>)[prop];
 	},
 });
+
+export function applyThemeTerminalColors(ui: TUI): Promise<void> {
+	return ui.setTerminalColors({
+		foreground: theme.getTerminalForegroundColor(),
+		background: theme.getTerminalBackgroundColor(),
+	});
+}
 
 function setGlobalTheme(t: Theme): void {
 	(globalThis as Record<symbol, Theme>)[THEME_KEY] = t;
