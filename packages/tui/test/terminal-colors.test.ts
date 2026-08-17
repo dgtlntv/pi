@@ -123,6 +123,48 @@ describe("parseTerminalColorSchemeReport", () => {
 	});
 });
 
+describe("TUI.setTerminalBackgroundColor", () => {
+	it("captures, overrides, updates, and restores the terminal background", async () => {
+		const terminal = new TestTerminal();
+		const tui: TUI = new TuiMainScreen(terminal);
+		tui.start();
+
+		const initialOverride = tui.setTerminalBackgroundColor({ r: 24, g: 24, b: 30 });
+		assert.ok(terminal.writes.includes("\x1b]11;?\x07"));
+		terminal.sendInput("\x1b]11;#010203\x07");
+		await initialOverride;
+		assert.ok(terminal.writes.includes("\x1b]11;#18181e\x07"));
+
+		await tui.setTerminalBackgroundColor({ r: 248, g: 248, b: 248 });
+		assert.ok(terminal.writes.includes("\x1b]11;#f8f8f8\x07"));
+		assert.strictEqual(terminal.writes.filter((write) => write === "\x1b]11;?\x07").length, 1);
+
+		tui.stop();
+		assert.strictEqual(terminal.writes.at(-1), "\x1b]11;#010203\x07");
+
+		const overrideCount = terminal.writes.filter((write) => write === "\x1b]11;#f8f8f8\x07").length;
+		const unrelatedTui: TUI = new TuiMainScreen(terminal);
+		unrelatedTui.start();
+		unrelatedTui.stop();
+		assert.strictEqual(terminal.writes.filter((write) => write === "\x1b]11;#f8f8f8\x07").length, overrideCount);
+	});
+
+	it("keeps the override during renderer handoff and restores it after the final stop", async () => {
+		const terminal = new TestTerminal();
+		const tui: TUI = new TuiMainScreen(terminal);
+		tui.start();
+		const override = tui.setTerminalBackgroundColor({ r: 24, g: 24, b: 30 });
+		terminal.sendInput("\x1b]11;#010203\x07");
+		await override;
+
+		tui.stop({ preserveTerminalBackground: true });
+		assert.notStrictEqual(terminal.writes.at(-1), "\x1b]11;#010203\x07");
+		tui.start();
+		tui.stop();
+		assert.strictEqual(terminal.writes.at(-1), "\x1b]11;#010203\x07");
+	});
+});
+
 describe("TUI.queryTerminalBackgroundColor", () => {
 	it("writes OSC 11 query and resolves with the parsed RGB reply", async () => {
 		const terminal = new TestTerminal();

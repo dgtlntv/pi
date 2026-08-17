@@ -62,6 +62,7 @@ const ThemeJsonSchema = Type.Object({
 		dim: ColorValueSchema,
 		text: ColorValueSchema,
 		thinkingText: ColorValueSchema,
+		background: ColorValueSchema,
 		// Scrollbar (2 colors)
 		scrollbarTrack: ColorValueSchema,
 		scrollbarThumb: ColorValueSchema,
@@ -180,6 +181,7 @@ export type ThemeColor =
 	| "bashMode";
 
 export type ThemeBg =
+	| "background"
 	| "selectedBg"
 	| "searchMatchBg"
 	| "userMessageBg"
@@ -372,6 +374,7 @@ export class Theme {
 	sourceInfo?: SourceInfo;
 	private fgColors: Map<ThemeColor, string>;
 	private bgColors: Map<ThemeBg, string>;
+	private backgroundColor: string | number;
 	private mode: ColorMode;
 
 	constructor(
@@ -402,6 +405,8 @@ export class Theme {
 			this.fgColors.set(key, fgAnsi(value, mode));
 		}
 		this.bgColors = new Map();
+		if (bgColors.background === "") throw new Error("Theme background must resolve to an explicit color");
+		this.backgroundColor = bgColors.background;
 		const backgrounds = {
 			...bgColors,
 			searchMatchBg: bgColors.searchMatchBg ?? bgColors.selectedBg,
@@ -453,6 +458,11 @@ export class Theme {
 		const ansi = this.bgColors.get(color);
 		if (!ansi) throw new Error(`Unknown theme background color: ${color}`);
 		return ansi;
+	}
+
+	getTerminalBackgroundColor(): RgbColor {
+		const value = this.backgroundColor;
+		return hexToRgb(typeof value === "number" ? ansi256ToHex(value) : value);
 	}
 
 	getColorMode(): ColorMode {
@@ -655,6 +665,7 @@ function createTheme(themeJson: ThemeJson, mode?: ColorMode, sourcePath?: string
 	const fgColors: Record<ThemeColor, string | number> = {} as Record<ThemeColor, string | number>;
 	const bgColors: Record<ThemeBg, string | number> = {} as Record<ThemeBg, string | number>;
 	const bgColorKeys: Set<string> = new Set([
+		"background",
 		"selectedBg",
 		"searchMatchBg",
 		"userMessageBg",

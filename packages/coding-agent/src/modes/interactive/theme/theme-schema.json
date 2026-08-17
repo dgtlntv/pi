@@ -74,6 +74,7 @@
 				"dim",
 				"text",
 				"thinkingText",
+				"background",
 				"selectedBg",
 				"scrollbarTrack",
 				"scrollbarThumb",
@@ -161,6 +162,10 @@
 				"thinkingText": {
 					"$ref": "#/$defs/colorValue",
 					"description": "Thinking block text color"
+				},
+				"background": {
+					"$ref": "#/$defs/colorValue",
+					"description": "Terminal background while pi is running; must resolve to an explicit color"
 				},
 				"selectedBg": {
 					"$ref": "#/$defs/colorValue",

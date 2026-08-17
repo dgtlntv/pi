@@ -834,7 +834,7 @@ export class InteractiveMode {
 			this.mainScreenRenderState = previousUi.captureRenderState();
 		}
 
-		previousUi.stop({ preserveScreen: true });
+		previousUi.stop({ preserveScreen: true, preserveTerminalBackground: true });
 		previousUi.setFocus(null);
 		previousUi.clear();
 		if (TuiLayouts.isViewportTUI(previousUi)) previousUi.setLayoutRoot(undefined);
@@ -859,6 +859,7 @@ export class InteractiveMode {
 		nextUi.setFocus(focus);
 		if (!startRenderer) return true;
 		nextUi.start();
+		void nextUi.setTerminalBackgroundColor(theme.getTerminalBackgroundColor());
 		this.themeController.rebindTui();
 		this.rebindExtensionTerminalInputListeners();
 		if (
@@ -1021,6 +1022,7 @@ export class InteractiveMode {
 
 		// Set up theme file watcher
 		onThemeChange(() => {
+			void this.ui.setTerminalBackgroundColor(theme.getTerminalBackgroundColor());
 			this.ui.invalidate();
 			this.updateEditorBorderColor();
 			this.ui.requestRender();

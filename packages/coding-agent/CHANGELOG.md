@@ -2,8 +2,11 @@
 
 ## [Unreleased]
 
-### Added
+### Breaking Changes
 
+- Themes must now define a `background` color, which temporarily controls the terminal background in regular and fullscreen modes and restores the previous color on exit or suspension.
+
+### Added
 - Added a hoverable and clickable “Jump to latest message” indicator whenever the fullscreen transcript is scrolled up, including its configured jump-to-bottom shortcut.
 - Added per-side theme-level `fullscreenPadding`, defaulting to zero cells on the top and bottom and one cell on the left and right, while keeping editor separators full-width and the scrollbar in the terminal's rightmost column.
 

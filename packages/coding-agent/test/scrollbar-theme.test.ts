@@ -60,12 +60,35 @@ describe("fullscreen theme settings", () => {
 		expect(() => loadThemeFromPath(writeTheme(themeJson), "truecolor")).toThrow("fullscreenPadding");
 	});
 
-	it.each(["scrollbarTrack", "scrollbarThumb"] as const)("requires %s", (token) => {
+	it.each(["background", "scrollbarTrack", "scrollbarThumb"] as const)("requires %s", (token) => {
 		const themeJson = loadDarkTheme();
 		themeJson.name = `missing-${token}-theme`;
 		delete themeJson.colors[token];
 
 		expect(() => loadThemeFromPath(writeTheme(themeJson), "truecolor")).toThrow(token);
+	});
+
+	it("rejects a terminal-default background", () => {
+		const themeJson = loadDarkTheme();
+		themeJson.name = "default-background-theme";
+		themeJson.colors.background = "";
+		expect(() => loadThemeFromPath(writeTheme(themeJson), "truecolor")).toThrow(
+			"Theme background must resolve to an explicit color",
+		);
+	});
+
+	it("resolves the terminal background color", () => {
+		const darkTheme = loadThemeFromPath(writeTheme(loadDarkTheme()), "truecolor");
+		expect(darkTheme.getTerminalBackgroundColor()).toEqual({ r: 24, g: 24, b: 30 });
+
+		const themeJson = loadDarkTheme();
+		themeJson.name = "ansi-background-theme";
+		themeJson.colors.background = 24;
+		expect(loadThemeFromPath(writeTheme(themeJson), "truecolor").getTerminalBackgroundColor()).toEqual({
+			r: 0,
+			g: 95,
+			b: 135,
+		});
 	});
 
 	it("uses explicitly configured scrollbar colors", () => {

@@ -79,10 +79,12 @@ vim ~/.pi/agent/themes/my-theme.json
   },
   "vars": {
     "primary": "#00aaff",
-    "secondary": 242
+    "secondary": 242,
+    "background": "#18181e"
   },
   "colors": {
     "accent": "primary",
+    "background": "background",
     "border": "primary",
     "borderAccent": "#00ffff",
     "borderMuted": "secondary",
@@ -166,6 +168,7 @@ vim ~/.pi/agent/themes/my-theme.json
     "accent": "blue",
     "muted": "gray",
     "text": "",
+    "background": "#18181e",
     ...
   }
 }
@@ -174,13 +177,13 @@ vim ~/.pi/agent/themes/my-theme.json
 - `name` is required, must be unique, and must not contain `/`.
 - `fullscreenPadding` optionally sets fullscreen padding per side in terminal cells. Omitted sides default to `0` for `top` and `bottom` and `1` for `right` and `left`; set all four sides to `0` to disable outer padding. The primary scrollbar remains in the terminal's rightmost column, and editor separator lines remain full-width.
 - `vars` is optional. Define reusable colors here, then reference them in `colors`.
-- `colors` must define all 53 required tokens. `thinkingMax` and the two search highlight tokens are optional and use the fallbacks listed below.
+- `colors` must define all 54 required tokens. `background` must resolve to an explicit color rather than `""`. `thinkingMax` and the two search highlight tokens are optional and use the fallbacks listed below.
 
 The `$schema` field enables editor auto-completion and validation.
 
 ## Color Tokens
 
-Every theme must define all 53 required color tokens. The optional tokens preserve compatibility with existing themes: `thinkingMax` falls back to `thinkingXhigh`, `searchMatchBg` falls back to `selectedBg`, and `searchMatchText` falls back to `text`. Other search matches use `searchMatchText` on `searchMatchBg` with an underline; the current match reverses that foreground/background pair and uses bold text.
+Every theme must define all 54 required color tokens. The optional tokens preserve compatibility with existing themes: `thinkingMax` falls back to `thinkingXhigh`, `searchMatchBg` falls back to `selectedBg`, and `searchMatchText` falls back to `text`. Other search matches use `searchMatchText` on `searchMatchBg` with an underline; the current match reverses that foreground/background pair and uses bold text.
 
 ### Core UI (13 colors)
 
@@ -200,10 +203,11 @@ Every theme must define all 53 required color tokens. The optional tokens preser
 | `scrollbarTrack` | Fullscreen scrollbar track foreground |
 | `scrollbarThumb` | Fullscreen scrollbar thumb foreground, shared by normal and expanded states |
 
-### Backgrounds & Content (11 required, 2 optional)
+### Backgrounds & Content (12 required, 2 optional)
 
 | Token | Purpose |
 |-------|---------|
+| `background` | Terminal background while pi is running |
 | `selectedBg` | Selected line background |
 | `searchMatchBg` | Transcript search match background and current-match text; optional, falls back to `selectedBg` |
 | `searchMatchText` | Transcript search match text and current-match background; optional, falls back to `text` |
@@ -309,6 +313,8 @@ Four formats are supported:
 ### Terminal Compatibility
 
 Pi uses 24-bit RGB colors. Most modern terminals support this (iTerm2, Kitty, WezTerm, Windows Terminal, VS Code). For older terminals with only 256-color support, pi falls back to the nearest approximation.
+
+While interactive mode is active, pi temporarily sets the terminal's default background to the theme's `background` color in both regular and fullscreen modes. It restores the previous terminal background on exit or suspension. Terminals without dynamic-color support ignore this change.
 
 Check truecolor support:
 

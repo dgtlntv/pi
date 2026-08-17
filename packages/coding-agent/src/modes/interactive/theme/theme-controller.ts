@@ -11,6 +11,7 @@ import {
 	setThemeInstance,
 	type TerminalTheme,
 	type Theme,
+	theme,
 } from "./theme.ts";
 
 type ThemeResult = { success: boolean; error?: string };
@@ -110,6 +111,7 @@ export class InteractiveThemeController {
 		const themeName = resolveThemeSetting(themeSettingOrName, this.terminalTheme) ?? this.activeThemeName;
 		if (!themeName) return;
 		if (setTheme(themeName, true).success) {
+			void this.ui.setTerminalBackgroundColor(theme.getTerminalBackgroundColor());
 			this.ui.invalidate();
 			this.ui.requestRender();
 		}
@@ -134,6 +136,7 @@ export class InteractiveThemeController {
 	}
 
 	private notifyChanged(): void {
+		void this.ui.setTerminalBackgroundColor(theme.getTerminalBackgroundColor());
 		this.ui.invalidate();
 		this.onChanged();
 	}

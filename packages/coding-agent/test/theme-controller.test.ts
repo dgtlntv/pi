@@ -8,6 +8,7 @@ function createUi() {
 	const queryTerminalBackgroundColor = vi.fn();
 	const queryTerminalColorScheme = vi.fn();
 	const setTerminalColorSchemeNotifications = vi.fn();
+	const setTerminalBackgroundColor = vi.fn().mockResolvedValue(undefined);
 	let terminalColorSchemeListener: ((terminalTheme: TerminalTheme) => void) | undefined;
 	const ui = {
 		invalidate: vi.fn(),
@@ -19,12 +20,14 @@ function createUi() {
 		}),
 		queryTerminalBackgroundColor,
 		queryTerminalColorScheme,
+		setTerminalBackgroundColor,
 	} as unknown as TUI;
 	return {
 		ui,
 		queryTerminalBackgroundColor,
 		queryTerminalColorScheme,
 		setTerminalColorSchemeNotifications,
+		setTerminalBackgroundColor,
 		emitTerminalColorScheme: (terminalTheme: TerminalTheme) => terminalColorSchemeListener?.(terminalTheme),
 	};
 }
@@ -45,7 +48,7 @@ afterEach(() => {
 
 describe("InteractiveThemeController", () => {
 	it("uses the initial theme without persisting it", async () => {
-		const { ui, queryTerminalBackgroundColor } = createUi();
+		const { ui, queryTerminalBackgroundColor, setTerminalBackgroundColor } = createUi();
 		const manager = SettingsManager.inMemory({ theme: "dark" });
 		const setTheme = vi.spyOn(manager, "setTheme");
 		const flush = vi.spyOn(manager, "flush");
@@ -56,13 +59,20 @@ describe("InteractiveThemeController", () => {
 		await controller.applyFromSettings();
 
 		expect(queryTerminalBackgroundColor).not.toHaveBeenCalled();
+		expect(setTerminalBackgroundColor).toHaveBeenCalledWith({ r: 248, g: 248, b: 248 });
 		expect(setTheme).not.toHaveBeenCalled();
 		expect(flush).not.toHaveBeenCalled();
 	});
 
 	it("resolves a theme pair and follows terminal appearance changes", async () => {
 		vi.stubEnv("COLORFGBG", "15;0");
-		const { ui, queryTerminalColorScheme, setTerminalColorSchemeNotifications, emitTerminalColorScheme } = createUi();
+		const {
+			ui,
+			queryTerminalColorScheme,
+			setTerminalColorSchemeNotifications,
+			setTerminalBackgroundColor,
+			emitTerminalColorScheme,
+		} = createUi();
 		queryTerminalColorScheme.mockResolvedValue("light");
 		const manager = SettingsManager.inMemory({ theme: "dark/light" });
 		const controller = createController(ui, () => manager, "light/dark");
@@ -74,6 +84,7 @@ describe("InteractiveThemeController", () => {
 
 		emitTerminalColorScheme("dark");
 		expect(theme.name).toBe("dark");
+		expect(setTerminalBackgroundColor).toHaveBeenLastCalledWith({ r: 24, g: 24, b: 30 });
 	});
 
 	it("detects the current terminal appearance when selecting a theme pair", async () => {
