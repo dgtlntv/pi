@@ -8,6 +8,7 @@ function createUi() {
 	const queryTerminalBackgroundColor = vi.fn();
 	const queryTerminalColorScheme = vi.fn();
 	const setTerminalColorSchemeNotifications = vi.fn();
+	const setDefaultForegroundStyle = vi.fn();
 	const setTerminalColors = vi.fn().mockResolvedValue(undefined);
 	let terminalColorSchemeListener: ((terminalTheme: TerminalTheme) => void) | undefined;
 	const ui = {
@@ -20,6 +21,7 @@ function createUi() {
 		}),
 		queryTerminalBackgroundColor,
 		queryTerminalColorScheme,
+		setDefaultForegroundStyle,
 		setTerminalColors,
 	} as unknown as TUI;
 	return {
@@ -27,6 +29,7 @@ function createUi() {
 		queryTerminalBackgroundColor,
 		queryTerminalColorScheme,
 		setTerminalColorSchemeNotifications,
+		setDefaultForegroundStyle,
 		setTerminalColors,
 		emitTerminalColorScheme: (terminalTheme: TerminalTheme) => terminalColorSchemeListener?.(terminalTheme),
 	};
@@ -48,7 +51,7 @@ afterEach(() => {
 
 describe("InteractiveThemeController", () => {
 	it("uses the initial theme without persisting it", async () => {
-		const { ui, queryTerminalBackgroundColor, setTerminalColors } = createUi();
+		const { ui, queryTerminalBackgroundColor, setDefaultForegroundStyle, setTerminalColors } = createUi();
 		const manager = SettingsManager.inMemory({ theme: "dark" });
 		const setTheme = vi.spyOn(manager, "setTheme");
 		const flush = vi.spyOn(manager, "flush");
@@ -59,6 +62,7 @@ describe("InteractiveThemeController", () => {
 		await controller.applyFromSettings();
 
 		expect(queryTerminalBackgroundColor).not.toHaveBeenCalled();
+		expect(setDefaultForegroundStyle).toHaveBeenLastCalledWith(theme.getDefaultForegroundStyle());
 		expect(setTerminalColors).toHaveBeenCalledWith({
 			foreground: { r: 31, g: 35, b: 40 },
 			background: { r: 248, g: 248, b: 248 },

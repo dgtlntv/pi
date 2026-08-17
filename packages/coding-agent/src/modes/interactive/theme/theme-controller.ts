@@ -12,6 +12,7 @@ import {
 	setThemeInstance,
 	type TerminalTheme,
 	type Theme,
+	theme,
 } from "./theme.ts";
 
 type ThemeResult = { success: boolean; error?: string };
@@ -46,6 +47,7 @@ export class InteractiveThemeController {
 			this.terminalTheme,
 		);
 		initTheme(this.activeThemeName, true);
+		this.ui.setDefaultForegroundStyle(theme.getDefaultForegroundStyle());
 		this.bindTerminalColorSchemeListener();
 	}
 

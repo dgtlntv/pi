@@ -463,6 +463,10 @@ export class Theme {
 		return ansi;
 	}
 
+	getDefaultForegroundStyle(): string | undefined {
+		return this.textColor === "" ? undefined : this.getFgAnsi("text");
+	}
+
 	getTerminalForegroundColor(): RgbColor | undefined {
 		const value = this.textColor;
 		if (value === "") return undefined;
@@ -896,6 +900,7 @@ export const theme: Theme = new Proxy({} as Theme, {
 });
 
 export function applyThemeTerminalColors(ui: TUI): Promise<void> {
+	ui.setDefaultForegroundStyle(theme.getDefaultForegroundStyle());
 	return ui.setTerminalColors({
 		foreground: theme.getTerminalForegroundColor(),
 		background: theme.getTerminalBackgroundColor(),

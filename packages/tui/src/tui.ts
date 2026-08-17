@@ -360,6 +360,7 @@ export interface TUI extends Component {
 	removeInputListener(listener: TuiInputListener): void;
 	onTerminalColorSchemeChange(listener: (scheme: TerminalColorScheme) => void): () => void;
 	setTerminalColorSchemeNotifications(enabled: boolean): void;
+	setDefaultForegroundStyle(style: string | undefined): void;
 	setTerminalColors(colors: TerminalColors | undefined): Promise<void>;
 	queryTerminalForegroundColor(options: { timeoutMs: number }): Promise<RgbColor | undefined>;
 	queryTerminalBackgroundColor(options: { timeoutMs: number }): Promise<RgbColor | undefined>;
@@ -400,6 +401,7 @@ export abstract class TuiBase extends Container implements TUI {
 	private pendingOsc11BackgroundQueries: PendingTerminalColorQuery[] = [];
 	private terminalColorSchemeListeners = new Set<(scheme: TerminalColorScheme) => void>();
 	private terminalColorSchemeNotificationsEnabled = false;
+	private defaultForegroundStyle: string | undefined;
 	private desiredTerminalForeground: RgbColor | undefined;
 	private desiredTerminalBackground: RgbColor | undefined;
 	private terminalForegroundRevision = 0;
@@ -798,6 +800,10 @@ export abstract class TuiBase extends Container implements TUI {
 		if (!this.stopped) {
 			this.terminal.write(enabled ? "\x1b[?2031h" : "\x1b[?2031l");
 		}
+	}
+
+	setDefaultForegroundStyle(style: string | undefined): void {
+		this.defaultForegroundStyle = style;
 	}
 
 	private queryCellSize(): void {
@@ -1259,7 +1265,15 @@ export abstract class TuiBase extends Container implements TUI {
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i];
 			if (!isImageLine(line)) {
-				lines[i] = normalizeTerminalOutput(line) + reset;
+				let normalized = normalizeTerminalOutput(line);
+				if (this.defaultForegroundStyle) {
+					normalized =
+						this.defaultForegroundStyle +
+						normalized
+							.replaceAll("\x1b[39m", `\x1b[39m${this.defaultForegroundStyle}`)
+							.replaceAll("\x1b[0m", `\x1b[0m${this.defaultForegroundStyle}`);
+				}
+				lines[i] = normalized + reset;
 			}
 		}
 		return lines;

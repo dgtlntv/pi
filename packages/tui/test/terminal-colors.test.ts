@@ -75,6 +75,12 @@ class TestTerminal implements Terminal {
 	}
 }
 
+class TestTui extends TuiMainScreen {
+	applyResets(lines: string[]): string[] {
+		return this.applyLineResets(lines);
+	}
+}
+
 class InputRecorder implements Component {
 	readonly inputs: string[] = [];
 
@@ -132,6 +138,21 @@ describe("parseTerminalColorSchemeReport", () => {
 		assert.strictEqual(parseTerminalColorSchemeReport("\x1b[?997;3n"), undefined);
 		assert.strictEqual(parseTerminalColorSchemeReport("\x1b[?996n"), undefined);
 		assert.strictEqual(parseTerminalColorSchemeReport("x\x1b[?997;1n"), undefined);
+	});
+});
+
+describe("TUI.setDefaultForegroundStyle", () => {
+	it("styles plain text and reapplies the style after foreground and full resets", () => {
+		const style = "\x1b[38;2;31;35;40m";
+		const tui = new TestTui(new TestTerminal());
+		tui.setDefaultForegroundStyle(style);
+
+		const [line] = tui.applyResets(["plain \x1b[31mred\x1b[39m plain \x1b[0m end"]);
+
+		assert.ok(line.startsWith(`${style}plain `));
+		assert.ok(line.includes(`\x1b[39m${style} plain`));
+		assert.ok(line.includes(`\x1b[0m${style} end`));
+		assert.ok(line.endsWith("\x1b[0m\x1b]8;;\x07"));
 	});
 });
 

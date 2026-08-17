@@ -316,7 +316,7 @@ Four formats are supported:
 
 Pi uses 24-bit RGB colors. Most modern terminals support this (iTerm2, Kitty, WezTerm, Windows Terminal, VS Code). For older terminals with only 256-color support, pi falls back to the nearest approximation.
 
-While interactive mode is active, Pi temporarily sets the terminal's default background to `background` and, when `text` is explicit, its default foreground to `text` in both regular and fullscreen modes. This also colors otherwise unstyled text and ANSI foreground resets. Pi restores both terminal colors on exit or suspension. A `text` value of `""` preserves the terminal's existing default foreground. Terminals without dynamic-color support ignore these changes.
+While interactive mode is active, Pi applies an explicit `text` color as the default style for all rendered text in both regular and fullscreen modes, including after ANSI foreground and full resets. It also temporarily sets the terminal's default background to `background` and its default foreground to an explicit `text` color. Pi restores both terminal colors on exit or suspension. A `text` value of `""` preserves the terminal's existing default foreground and does not add a rendered default style. Terminals without dynamic-color support ignore the terminal changes, while the rendered default style still applies.
 
 Check truecolor support:
 

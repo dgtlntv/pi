@@ -83,11 +83,14 @@ tui.onDebug = () => console.log("Debug triggered");
 Temporarily override the terminal's default foreground and background. The TUI captures the original dynamic colors and restores them when it stops:
 
 ```typescript
+tui.setDefaultForegroundStyle("\x1b[38;2;31;35;40m");
 await tui.setTerminalColors({
   foreground: { r: 31, g: 35, b: 40 },
   background: { r: 248, g: 248, b: 248 },
 });
 ```
+
+`setDefaultForegroundStyle()` prefixes rendered text and reapplies the style after foreground or full ANSI resets. This keeps plain text readable even when a terminal ignores dynamic foreground changes.
 
 Use `stop({ preserveTerminalColors: true })` only when another TUI using the same terminal immediately takes over.
 
