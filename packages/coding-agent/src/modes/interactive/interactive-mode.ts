@@ -895,7 +895,7 @@ export class InteractiveMode {
 		}
 
 		// Keep one component tree and remount it when changing renderers.
-		this.renderWidgets(); // Initialize widget containers
+		this.renderWidgets(); // Initialize with default spacer
 		this.transcriptScrollView = new TuiLayouts.ScrollView(this.documentContainer, {
 			follow: "end",
 			primary: true,
@@ -2266,7 +2266,7 @@ export class InteractiveMode {
 	 */
 	private renderWidgets(): void {
 		if (!this.widgetContainerAbove || !this.widgetContainerBelow) return;
-		this.renderWidgetContainer(this.widgetContainerAbove, this.extensionWidgetsAbove, false, true);
+		this.renderWidgetContainer(this.widgetContainerAbove, this.extensionWidgetsAbove, true, true);
 		this.renderWidgetContainer(this.widgetContainerBelow, this.extensionWidgetsBelow, false, false);
 		this.ui.requestRender();
 	}

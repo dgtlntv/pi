@@ -15,7 +15,6 @@
 ### Fixed
 
 - Moved the fullscreen “Jump to latest message” indicator up one row.
-- Removed the empty line above the chat editor when no extension widget is present.
 
 ## [0.84.2] - 2026-08-14
 
