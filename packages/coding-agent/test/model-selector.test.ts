@@ -21,6 +21,36 @@ describe("model selector", () => {
 		harness = undefined;
 	});
 
+	it("marks the current model independently from keyboard focus", async () => {
+		harness = await createHarness({
+			models: [
+				{ id: "current", name: "Current" },
+				{ id: "other", name: "Other" },
+			],
+		});
+		const currentModel = harness.getModel("current");
+		expect(currentModel).toBeDefined();
+		if (!currentModel) return;
+
+		const selector = new ModelSelectorComponent(
+			createFakeTui(),
+			currentModel,
+			harness.settingsManager,
+			harness.session.modelRuntime,
+			[],
+			() => {},
+			() => {},
+		);
+
+		expect(stripAnsi(selector.render(120).join("\n"))).toContain("→ ✓ current");
+
+		selector.handleInput("\x1b[B");
+		const rendered = stripAnsi(selector.render(120).join("\n"));
+		expect(rendered).toContain("  ✓ current");
+		expect(rendered).toContain("→   ");
+		expect(rendered).not.toContain("→ ✓ current");
+	});
+
 	it("lists every catalog that failed to refresh", async () => {
 		harness = await createHarness();
 		vi.spyOn(harness.session.modelRuntime, "refresh").mockResolvedValue({
