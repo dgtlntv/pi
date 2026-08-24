@@ -107,21 +107,22 @@ describe("TuiAltScreen", () => {
 		tui.stop();
 	});
 
-	it("extends horizontal rules through side padding without moving text", async () => {
+	it("extends plain and labelled horizontal rules through side padding without moving text", async () => {
 		const terminal = new RecordingTerminal(12, 3);
 		const tui = new TuiAltScreen(terminal, undefined, undefined, {
 			viewportPadding: { right: 2, left: 1 },
 			extendHorizontalRulesToEdges: true,
 		});
 		tui.setLayoutRoot({
-			render: (width) => ["─".repeat(width), "text"],
+			render: (width) => ["─".repeat(width), `── ⠋ Go ${"─".repeat(width - 8)}`, "text"],
 			invalidate: () => {},
 		});
 
 		tui.start();
 		await terminal.waitForRender();
 		assert.strictEqual(terminal.getViewport()[0], "─".repeat(12));
-		assert.ok(terminal.getViewport()[1]?.startsWith(" text"));
+		assert.strictEqual(terminal.getViewport()[1], "─── ⠋ Go ───");
+		assert.ok(terminal.getViewport()[2]?.startsWith(" text"));
 		tui.stop();
 	});
 

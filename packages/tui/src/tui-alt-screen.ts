@@ -1380,7 +1380,7 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 			const line = result[row] ?? "";
 			const rule = sliceByColumn(line, viewport.x, viewport.width, true);
 			const plainRule = stripTerminalSequences(rule);
-			if (!/^─+(?: [↑↓] \d+ more )?─+$/.test(plainRule)) continue;
+			if (!/^─+(?: .+ )?─+$/.test(plainRule)) continue;
 			const ruleCell = sliceByColumn(rule, 0, 1, true);
 			const lastCell = sliceByColumn(line, width - 1, 1, true);
 			const preserveScrollbar = /^[│┃█]$/.test(stripTerminalSequences(lastCell));
