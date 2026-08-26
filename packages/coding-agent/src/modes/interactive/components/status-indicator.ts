@@ -49,6 +49,10 @@ export class WorkingStatusIndicator extends StatusIndicator {
 		return truncateToWidth(line.startsWith(" ") ? line.slice(1).trimEnd() : line.trimEnd(), width, "");
 	}
 
+	renderSpinnerInBorder(width: number): string {
+		return truncateToWidth(this.getRenderedIndicator(), width, "");
+	}
+
 	override invalidate(): void {
 		super.invalidate();
 		super.setMessage(this.workingMessage);
