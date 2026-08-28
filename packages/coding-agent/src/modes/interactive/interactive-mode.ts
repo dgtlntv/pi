@@ -156,7 +156,6 @@ import { refreshModelCatalogs } from "./model-catalog-refresh.ts";
 import { getModelSearchText } from "./model-search.ts";
 import {
 	applyThemeTerminalColors,
-	type FullscreenPadding,
 	getAvailableThemes,
 	getAvailableThemesWithPaths,
 	getEditorTheme,
@@ -349,7 +348,6 @@ interface InteractiveTuiOptions {
 	showHardwareCursor: boolean;
 	logDirectory: string;
 	terminal?: Terminal;
-	fullscreenPadding?: FullscreenPadding | (() => FullscreenPadding);
 	onRightClickPaste?: () => void;
 }
 
@@ -359,7 +357,8 @@ export function createInteractiveTui(options: InteractiveTuiOptions): TuiMainScr
 	if (options.tuiMode === "fullscreen") {
 		const styleSearchMatch = (text: string) => theme.bg("searchMatchBg", theme.fg("searchMatchText", text));
 		return new TuiAltScreen(terminal, options.showHardwareCursor, options.logDirectory, {
-			viewportPadding: options.fullscreenPadding ?? { top: 0, right: 1, bottom: 0, left: 1 },
+			viewportPadding: { right: 1, left: 1 },
+			extendBackgroundsToEdges: true,
 			extendHorizontalRulesToEdges: true,
 			searchMatchStyle: (text) => theme.underline(styleSearchMatch(text)),
 			searchCurrentMatchStyle: (text) => theme.bold(theme.inverse(styleSearchMatch(text))),
@@ -575,7 +574,6 @@ export class InteractiveMode {
 			tuiMode,
 			showHardwareCursor: this.settingsManager.getShowHardwareCursor(),
 			logDirectory: getAgentDir(),
-			fullscreenPadding: () => theme.fullscreenPadding,
 			onRightClickPaste: this.onRightClickPaste,
 		});
 		this.ui = createInteractiveTuiReference(() => this.renderer);
@@ -845,7 +843,6 @@ export class InteractiveMode {
 			showHardwareCursor,
 			logDirectory: getAgentDir(),
 			terminal,
-			fullscreenPadding: () => theme.fullscreenPadding,
 			onRightClickPaste: this.onRightClickPaste,
 		});
 		nextUi.setClearOnShrink(clearOnShrink);

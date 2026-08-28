@@ -8,7 +8,6 @@ const tempDirs: string[] = [];
 
 interface TestThemeJson {
 	name: string;
-	fullscreenPadding?: Partial<{ top: number; right: number; bottom: number; left: number }>;
 	colors: Record<string, string | number>;
 }
 
@@ -32,34 +31,7 @@ afterEach(() => {
 	}
 });
 
-describe("fullscreen theme settings", () => {
-	it("uses per-side fullscreen padding with defaults for omitted sides", () => {
-		const themeJson = loadDarkTheme();
-		themeJson.name = "fullscreen-padding-theme";
-		delete themeJson.fullscreenPadding;
-		expect(loadThemeFromPath(writeTheme(themeJson), "truecolor").fullscreenPadding).toEqual({
-			top: 0,
-			right: 1,
-			bottom: 0,
-			left: 1,
-		});
-
-		themeJson.fullscreenPadding = { top: 2, left: 3 };
-		expect(loadThemeFromPath(writeTheme(themeJson), "truecolor").fullscreenPadding).toEqual({
-			top: 2,
-			right: 1,
-			bottom: 0,
-			left: 3,
-		});
-	});
-
-	it("rejects negative fullscreen padding", () => {
-		const themeJson = loadDarkTheme();
-		themeJson.name = "invalid-fullscreen-padding-theme";
-		themeJson.fullscreenPadding = { bottom: -1 };
-		expect(() => loadThemeFromPath(writeTheme(themeJson), "truecolor")).toThrow("fullscreenPadding");
-	});
-
+describe("fullscreen theme colors", () => {
 	it.each(["background", "scrollbarTrack", "scrollbarThumb"] as const)("requires %s", (token) => {
 		const themeJson = loadDarkTheme();
 		themeJson.name = `missing-${token}-theme`;

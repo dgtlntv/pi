@@ -7,7 +7,7 @@
 - Added a `SelectList.setCurrentValue()` indicator that distinguishes the configured value from keyboard focus.
 - Added a default rendered-foreground style API plus terminal foreground/background overrides that capture and restore the previous dynamic colors across TUI lifecycle and renderer handoffs.
 - Added an optional hoverable and clickable alternate-screen jump-to-end indicator that remains visible while the primary scroll view is scrolled up.
-- Added independently configurable per-side viewport padding to the alternate-screen renderer, with edge-aligned primary scrollbars and optional full-width horizontal rules.
+- Added independently configurable per-side viewport padding to the alternate-screen renderer, with edge-aligned primary scrollbars and optional full-width backgrounds and horizontal rules.
 
 ### Changed
 
