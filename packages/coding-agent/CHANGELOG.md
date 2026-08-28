@@ -5,7 +5,7 @@
 ### Added
 
 - Added a hoverable and clickable “Jump to latest message” indicator whenever the fullscreen transcript is scrolled up, including its configured jump-to-bottom shortcut.
-- Added per-side theme-level `fullscreenPadding`, defaulting to zero cells on top and one cell on the left, right, and bottom, while keeping editor separators full-width and the scrollbar in the terminal's rightmost column.
+- Added a fixed one-cell fullscreen text inset on the left and right while allowing box backgrounds and editor separators to reach the terminal edges and keeping the scrollbar in the rightmost column.
 
 ### Changed
 

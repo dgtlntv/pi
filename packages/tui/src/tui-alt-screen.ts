@@ -161,6 +161,8 @@ export interface TuiAltScreenOptions {
 	wheelScrollLines?: number;
 	/** Inset fullscreen content from the terminal edges. */
 	viewportPadding?: Partial<TuiViewportPadding> | (() => Partial<TuiViewportPadding>);
+	/** Extend background colors through left and right viewport padding without moving content. */
+	extendBackgroundsToEdges?: boolean;
 	/** Extend horizontal rule rows through left and right viewport padding. */
 	extendHorizontalRulesToEdges?: boolean;
 	/** Capture mouse events for viewport scrolling and application-owned text selection. */
@@ -216,6 +218,7 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 	private selectionDragged = false;
 	private readonly wheelScrollLines: number;
 	private readonly viewportPadding: () => Partial<TuiViewportPadding>;
+	private readonly extendBackgroundsToEdges: boolean;
 	private readonly extendHorizontalRulesToEdges: boolean;
 	private readonly mouseEnabled: boolean;
 	private readonly searchMatchStyle: (text: string) => string;
@@ -243,6 +246,7 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 		this.wheelScrollLines = Math.max(1, Math.floor(options.wheelScrollLines ?? 1));
 		const viewportPadding = options.viewportPadding ?? {};
 		this.viewportPadding = typeof viewportPadding === "function" ? viewportPadding : () => viewportPadding;
+		this.extendBackgroundsToEdges = options.extendBackgroundsToEdges ?? false;
 		this.extendHorizontalRulesToEdges = options.extendHorizontalRulesToEdges ?? false;
 		this.mouseEnabled = options.mouse ?? true;
 		this.searchMatchStyle = options.searchMatchStyle ?? ((text) => `\x1b[4m${text}\x1b[24m`);
@@ -1370,6 +1374,68 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 		return result;
 	}
 
+	private getBackgroundCodeAtColumn(line: string, column: number): string {
+		const cell = sliceByColumn(line, column, 1, true);
+		let background: string | undefined;
+		let index = 0;
+		while (index < cell.length) {
+			const ansi = extractAnsiCode(cell, index);
+			if (!ansi) break;
+			index += ansi.length;
+			const match = /^\x1b\[([\d;]*)m$/.exec(ansi.code);
+			if (!match) continue;
+			const parts = match[1] === "" ? ["0"] : match[1].split(";");
+			for (let part = 0; part < parts.length; part++) {
+				const code = Number.parseInt(parts[part]!, 10);
+				if (code === 0 || code === 49) {
+					background = undefined;
+				} else if (code === 38 && parts[part + 1] === "5" && parts[part + 2] !== undefined) {
+					part += 2;
+				} else if (code === 38 && parts[part + 1] === "2" && parts[part + 4] !== undefined) {
+					part += 4;
+				} else if (code === 48 && parts[part + 1] === "5" && parts[part + 2] !== undefined) {
+					background = `48;5;${parts[part + 2]}`;
+					part += 2;
+				} else if (code === 48 && parts[part + 1] === "2" && parts[part + 4] !== undefined) {
+					background = `48;2;${parts[part + 2]};${parts[part + 3]};${parts[part + 4]}`;
+					part += 4;
+				} else if ((code >= 40 && code <= 47) || (code >= 100 && code <= 107)) {
+					background = String(code);
+				}
+			}
+		}
+		return background ? `\x1b[${background}m` : "";
+	}
+
+	private extendBackgrounds(screen: string[], viewport: LayoutRect, width: number): string[] {
+		const rightEdge = viewport.x + viewport.width;
+		if (!this.extendBackgroundsToEdges || (viewport.x === 0 && rightEdge === width)) return screen;
+		const result = [...screen];
+		for (let row = viewport.y; row < viewport.y + viewport.height; row++) {
+			let line = result[row] ?? "";
+			if (isImageLine(line)) continue;
+			const leftBackground = this.getBackgroundCodeAtColumn(line, viewport.x);
+			if (leftBackground && viewport.x > 0) {
+				line = compositeTuiLine(line, `${leftBackground}${" ".repeat(viewport.x)}\x1b[49m`, 0, viewport.x, width);
+			}
+			const lastCell = sliceByColumn(line, width - 1, 1, true);
+			const preserveScrollbar = /^[│┃█]$/.test(stripTerminalSequences(lastCell));
+			const rightWidth = Math.max(0, width - rightEdge - (preserveScrollbar ? 1 : 0));
+			const rightBackground = this.getBackgroundCodeAtColumn(line, rightEdge - 1);
+			if (rightBackground && rightWidth > 0) {
+				line = compositeTuiLine(
+					line,
+					`${rightBackground}${" ".repeat(rightWidth)}\x1b[49m`,
+					rightEdge,
+					rightWidth,
+					width,
+				);
+			}
+			result[row] = line;
+		}
+		return result;
+	}
+
 	private extendHorizontalRules(screen: string[], viewport: LayoutRect, width: number): string[] {
 		if (!this.extendHorizontalRulesToEdges || (viewport.x === 0 && viewport.x + viewport.width === width)) {
 			return screen;
@@ -1454,6 +1520,7 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 		}
 		let screen = nextLayout.lines.map((line) => line.replace(OSC133_ZONE_PREFIX, ""));
 		screen = this.applySearchHighlights(screen, nextLayout);
+		screen = this.extendBackgrounds(screen, contentRect, width);
 		screen = this.extendHorizontalRules(screen, contentRect, width);
 		screen = this.compositeScrollToEndIndicator(screen, nextLayout, width);
 		screen = this.compositeOverlays(screen, width, height, contentRect);

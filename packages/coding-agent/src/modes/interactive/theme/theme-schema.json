@@ -14,33 +14,6 @@
 			"pattern": "^[^/]+$",
 			"description": "Theme name. Must not contain '/' because it is reserved for automatic light/dark theme settings."
 		},
-		"fullscreenPadding": {
-			"type": "object",
-			"description": "Fullscreen padding in terminal cells",
-			"properties": {
-				"top": {
-					"type": "integer",
-					"minimum": 0,
-					"default": 0
-				},
-				"right": {
-					"type": "integer",
-					"minimum": 0,
-					"default": 1
-				},
-				"bottom": {
-					"type": "integer",
-					"minimum": 0,
-					"default": 1
-				},
-				"left": {
-					"type": "integer",
-					"minimum": 0,
-					"default": 1
-				}
-			},
-			"additionalProperties": false
-		},
 		"vars": {
 			"type": "object",
 			"description": "Reusable color variables",
