@@ -8,7 +8,7 @@
 
 ### Added
 
-- Added a persistent checkmark for the configured value in settings option lists while browsing other choices.
+- Added a shared persistent checkmark for configured values in settings option lists and the model selector while browsing other choices.
 - Added a hoverable and clickable “Jump to latest message” indicator whenever the fullscreen transcript is scrolled up, including its configured jump-to-bottom shortcut.
 - Added a fixed one-cell fullscreen text inset on the left and right while allowing box backgrounds and editor separators to reach the terminal edges and keeping the scrollbar in the rightmost column.
 

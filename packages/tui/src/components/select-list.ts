@@ -37,6 +37,17 @@ export interface SelectListLayoutOptions {
 	truncatePrimary?: (context: SelectListTruncatePrimaryContext) => string;
 }
 
+/** Render keyboard focus and configured-value indicators for a selection row. */
+export function renderSelectListIndicator(
+	theme: Pick<SelectListTheme, "selectedPrefix">,
+	isSelected: boolean,
+	isCurrent?: boolean,
+): string {
+	const cursorPrefix = isSelected ? theme.selectedPrefix("→ ") : "  ";
+	const currentPrefix = isCurrent === undefined ? "" : isCurrent ? theme.selectedPrefix("✓ ") : "  ";
+	return cursorPrefix + currentPrefix;
+}
+
 export class SelectList implements Component {
 	private items: SelectItem[] = [];
 	private filteredItems: SelectItem[] = [];
@@ -149,14 +160,11 @@ export class SelectList implements Component {
 		descriptionSingleLine: string | undefined,
 		primaryColumnWidth: number,
 	): string {
-		const cursorPrefix = isSelected ? this.theme.selectedPrefix("→ ") : "  ";
-		const currentPrefix =
-			this.currentValue === undefined
-				? ""
-				: item.value === this.currentValue
-					? this.theme.selectedPrefix("✓ ")
-					: "  ";
-		const prefix = cursorPrefix + currentPrefix;
+		const prefix = renderSelectListIndicator(
+			this.theme,
+			isSelected,
+			this.currentValue === undefined ? undefined : item.value === this.currentValue,
+		);
 		const prefixWidth = visibleWidth(prefix);
 
 		if (descriptionSingleLine && width > 40) {

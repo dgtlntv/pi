@@ -530,6 +530,8 @@ list.setCurrentValue("opt1"); // Show ✓ on the configured value while focus mo
 list.setFilter("opt"); // Filter items
 ```
 
+Custom list renderers can call `renderSelectListIndicator(theme, isSelected, isCurrent)` to use the same focus and configured-value columns.
+
 **Controls:**
 - Arrow keys: Navigate
 - Enter: Select

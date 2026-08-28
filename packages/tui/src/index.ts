@@ -25,6 +25,7 @@ export {
 	type ScrollViewScrollToOptions,
 } from "./components/scroll-view.ts";
 export {
+	renderSelectListIndicator,
 	type SelectItem,
 	SelectList,
 	type SelectListLayoutOptions,

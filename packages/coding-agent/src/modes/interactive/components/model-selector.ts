@@ -5,6 +5,7 @@ import {
 	fuzzyFilter,
 	getKeybindings,
 	Input,
+	renderSelectListIndicator,
 	Spacer,
 	Text,
 	type TUI,
@@ -13,7 +14,7 @@ import type { ModelRuntime } from "../../../core/model-runtime.ts";
 import type { SettingsManager } from "../../../core/settings-manager.ts";
 import { refreshModelCatalogs } from "../model-catalog-refresh.ts";
 import { getModelSelectorSearchText } from "../model-search.ts";
-import { theme } from "../theme/theme.ts";
+import { getSelectListTheme, theme } from "../theme/theme.ts";
 import { DynamicBorder } from "./dynamic-border.ts";
 import { keyHint } from "./keybinding-hints.ts";
 
@@ -35,6 +36,7 @@ type ModelScope = "all" | "scoped";
  */
 export class ModelSelectorComponent extends Container implements Focusable {
 	private searchInput: Input;
+	private readonly selectListTheme = getSelectListTheme();
 
 	// Focusable implementation - propagate to searchInput for IME cursor positioning
 	private _focused = false;
@@ -273,11 +275,10 @@ export class ModelSelectorComponent extends Container implements Focusable {
 			const isSelected = i === this.selectedIndex;
 			const isCurrent = modelsAreEqual(this.currentModel, item.model);
 
-			const cursorPrefix = isSelected ? theme.fg("accent", "→ ") : "  ";
-			const currentPrefix = isCurrent ? theme.fg("accent", "✓ ") : "  ";
+			const indicator = renderSelectListIndicator(this.selectListTheme, isSelected, isCurrent);
 			const modelText = isSelected ? theme.fg("accent", item.id) : item.id;
 			const providerBadge = theme.fg("muted", `[${item.provider}]`);
-			const line = `${cursorPrefix + currentPrefix + modelText} ${providerBadge}`;
+			const line = `${indicator + modelText} ${providerBadge}`;
 
 			this.listContainer.addChild(new Text(line, 0, 0));
 		}
