@@ -1492,8 +1492,20 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 			const lastCell = sliceByColumn(line, width - 1, 1, true);
 			const preserveScrollbar = /^[│┃█]$/.test(stripTerminalSequences(lastCell));
 			const rightRuleWidth = Math.max(0, rightPadding - (preserveScrollbar ? 1 : 0));
-			result[row] =
-				ruleCell.repeat(viewport.x) + rule + ruleCell.repeat(rightRuleWidth) + (preserveScrollbar ? lastCell : "");
+			let extended = line;
+			if (viewport.x > 0) {
+				extended = compositeTuiLine(extended, ruleCell.repeat(viewport.x), 0, viewport.x, width);
+			}
+			if (rightRuleWidth > 0) {
+				extended = compositeTuiLine(
+					extended,
+					ruleCell.repeat(rightRuleWidth),
+					viewport.x + viewport.width,
+					rightRuleWidth,
+					width,
+				);
+			}
+			result[row] = extended;
 		}
 		return result;
 	}
