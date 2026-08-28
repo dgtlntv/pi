@@ -1,12 +1,6 @@
 {
 	"$schema": "https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/src/modes/interactive/theme/theme-schema.json",
 	"name": "light",
-	"fullscreenPadding": {
-		"top": 0,
-		"right": 1,
-		"bottom": 0,
-		"left": 1
-	},
 	"vars": {
 		"teal": "#5a8080",
 		"blue": "#547da7",
