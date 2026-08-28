@@ -361,6 +361,7 @@ export function createInteractiveTui(options: InteractiveTuiOptions): TuiMainScr
 			extendHorizontalRulesToEdges: true,
 			searchMatchStyle: (text) => theme.underline(styleSearchMatch(text)),
 			searchCurrentMatchStyle: (text) => theme.bold(theme.inverse(styleSearchMatch(text))),
+			searchNavigationButtonStyle: (text, hovered) => (hovered ? theme.underline(text) : text),
 			scrollToEndIndicator: (hovered) => {
 				const shortcut = keyDisplayText("tui.altScreen.bottom");
 				const label = theme.bold(` ↓ Jump to latest message${shortcut ? ` · Press ${shortcut}` : ""} `);

@@ -9,6 +9,7 @@
 
 ### Changed
 
+- Changed fullscreen transcript search arrows to underline on hover and capitalized the search placeholder.
 - Moved the streaming working indicator into the editor border and matched its default spinner and label to the thinking-level border color.
 - Changed fullscreen scrollbars to reveal on pointer entry, use dedicated required `scrollbarTrack` and `scrollbarThumb` theme colors, keep one thumb color across normal and expanded states, and support track-click jumping.
 
