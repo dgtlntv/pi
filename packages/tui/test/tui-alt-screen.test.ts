@@ -62,6 +62,14 @@ function getCellBackground(terminal: VirtualTerminal, row: number, column: numbe
 	return cell.isBgDefault() ? undefined : cell.getBgColor();
 }
 
+function getCellForeground(terminal: VirtualTerminal, row: number, column: number): number | undefined {
+	const xterm = (terminal as unknown as { xterm: XtermTerminalType }).xterm;
+	const line = xterm.buffer.active.getLine(xterm.buffer.active.viewportY + row);
+	const cell = line?.getCell(column);
+	assert.ok(cell, `Missing cell at row ${row} column ${column}`);
+	return cell.isFgDefault() ? undefined : cell.getFgColor();
+}
+
 describe("TuiAltScreen", () => {
 	it("applies configurable padding independently on every viewport side", async () => {
 		const terminal = new RecordingTerminal(12, 5);
@@ -148,6 +156,34 @@ describe("TuiAltScreen", () => {
 		assert.strictEqual(terminal.getViewport()[0], "─".repeat(12));
 		assert.strictEqual(terminal.getViewport()[1], "─── ⠋ Go ───");
 		assert.ok(terminal.getViewport()[2]?.startsWith(" text"));
+		tui.stop();
+	});
+
+	it("keeps scrollbar colors independent from extended horizontal rules", async () => {
+		const terminal = new RecordingTerminal(12, 3);
+		const tui = new TuiAltScreen(terminal, undefined, undefined, {
+			viewportPadding: { right: 1, left: 1 },
+			extendHorizontalRulesToEdges: true,
+		});
+		const transcript = new ScrollView(
+			{
+				render: (width) => [`\x1b[33m${"─".repeat(width)}\x1b[39m`, "content", "more", "overflow"],
+				invalidate: () => {},
+			},
+			{
+				primary: true,
+				scrollbar: "always",
+				scrollbarTrackStyle: (text) => `\x1b[32m${text}\x1b[39m`,
+				scrollbarThumbStyle: (text) => `\x1b[32m${text}\x1b[39m`,
+			},
+		);
+		tui.setLayoutRoot(transcript);
+
+		tui.start();
+		await terminal.waitForRender();
+		assert.strictEqual(terminal.getViewport()[0], `${"─".repeat(11)}┃`);
+		assert.strictEqual(getCellForeground(terminal, 0, 0), 3);
+		assert.strictEqual(getCellForeground(terminal, 0, 11), 2);
 		tui.stop();
 	});
 
