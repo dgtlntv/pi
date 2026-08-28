@@ -1,5 +1,6 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
+import type { Terminal as XtermTerminalType } from "@xterm/headless";
 import { AltScreenSearchComponent, findAltScreenSearchMatches } from "../src/alt-screen-search.ts";
 import { HStack } from "../src/components/h-stack.ts";
 import { Image } from "../src/components/image.ts";
@@ -54,6 +55,14 @@ class RecordingTerminal extends VirtualTerminal {
 	}
 }
 
+function getCellBackground(terminal: VirtualTerminal, row: number, column: number): number | undefined {
+	const xterm = (terminal as unknown as { xterm: XtermTerminalType }).xterm;
+	const line = xterm.buffer.active.getLine(xterm.buffer.active.viewportY + row);
+	const cell = line?.getCell(column);
+	assert.ok(cell, `Missing cell at row ${row} column ${column}`);
+	return cell.isBgDefault() ? undefined : cell.getBgColor();
+}
+
 describe("TuiAltScreen", () => {
 	it("applies configurable padding independently on every viewport side", async () => {
 		const terminal = new RecordingTerminal(12, 5);
@@ -73,6 +82,22 @@ describe("TuiAltScreen", () => {
 		await terminal.waitForRender();
 		assert.ok(renderedWidths.every((width) => width === 9));
 		assert.deepStrictEqual(terminal.getViewport(), ["", " top        ", " middle     ", " bottom     ", ""]);
+		tui.stop();
+	});
+
+	it("extends backgrounds through side padding without moving text", async () => {
+		const terminal = new RecordingTerminal(12, 2);
+		const tui = new TuiAltScreen(terminal, undefined, undefined, {
+			viewportPadding: { right: 1, left: 1 },
+			extendBackgroundsToEdges: true,
+		});
+		tui.setLayoutRoot(new Text("boxed", 0, 0, (text) => `\x1b[41m${text}\x1b[49m`));
+
+		tui.start();
+		await terminal.waitForRender();
+		assert.ok(terminal.getViewport()[0]?.startsWith(" boxed"));
+		assert.strictEqual(getCellBackground(terminal, 0, 0), 1);
+		assert.strictEqual(getCellBackground(terminal, 0, 11), 1);
 		tui.stop();
 	});
 
