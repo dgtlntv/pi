@@ -18,6 +18,18 @@ const visibleIndexOf = (line: string, text: string): number => {
 };
 
 describe("SelectList", () => {
+	it("styles unselected item labels with itemText", () => {
+		const items = [
+			{ value: "a", label: "alpha", description: "first" },
+			{ value: "b", label: "beta" },
+		];
+		const theme = { ...testTheme, itemText: (text: string) => `<${text}>` };
+		const rendered = new SelectList(items, 5, theme).render(100);
+
+		assert.ok(!rendered[0].includes("<alpha"), "selected item uses selectedText");
+		assert.ok(rendered[1].includes("<beta>"), "unselected item uses itemText");
+	});
+
 	it("normalizes multiline descriptions to single line", () => {
 		const items = [
 			{

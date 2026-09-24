@@ -251,7 +251,7 @@ export class ScopedModelsSelectorComponent extends Container implements Focusabl
 			const prefix = isSelected ? theme.fg("accent", "→ ") : "  ";
 			const id = item.model?.id ?? item.fullId;
 			const styledId = item.model ? id : theme.strikethrough(id);
-			const modelText = isSelected ? theme.fg("accent", styledId) : styledId;
+			const modelText = theme.fg(isSelected ? "accent" : "text", styledId);
 			const providerBadge = theme.fg("muted", item.model ? ` [${item.model.provider}]` : " [unavailable]");
 			const status = item.model && item.enabled ? theme.fg("accent", "✓ ") : "  ";
 			this.listContainer.addChild(new Text(`${prefix}${status}${modelText}${providerBadge}`, 0, 0));

@@ -18,6 +18,8 @@ export interface SelectItem {
 export interface SelectListTheme {
 	selectedPrefix: (text: string) => string;
 	selectedText: (text: string) => string;
+	/** Style for unselected item labels. Unstyled (terminal default) when omitted. */
+	itemText?: (text: string) => string;
 	description: (text: string) => string;
 	scrollInfo: (text: string) => string;
 	noMatch: (text: string) => string;
@@ -206,7 +208,7 @@ export class SelectList implements Component {
 				}
 
 				const descText = this.theme.description(spacing + truncatedDesc);
-				return prefix + truncatedValue + descText;
+				return prefix + (this.theme.itemText?.(truncatedValue) ?? truncatedValue) + descText;
 			}
 		}
 
@@ -216,7 +218,7 @@ export class SelectList implements Component {
 			return this.theme.selectedText(`${prefix}${truncatedValue}`);
 		}
 
-		return prefix + truncatedValue;
+		return prefix + (this.theme.itemText?.(truncatedValue) ?? truncatedValue);
 	}
 
 	private getPrimaryColumnWidth(): number {

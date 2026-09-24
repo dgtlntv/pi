@@ -499,7 +499,7 @@ class SessionList implements Component, Focusable {
 			} else if (hasName) {
 				messageColor = "warning";
 			}
-			let styledMsg = messageColor ? theme.fg(messageColor, truncatedMsg) : truncatedMsg;
+			let styledMsg = theme.fg(messageColor ?? "text", truncatedMsg);
 			if (isSelected) {
 				styledMsg = theme.bold(styledMsg);
 			}

@@ -57,7 +57,7 @@ class UserMessageList implements Component {
 			const cursor = isSelected ? theme.fg("accent", "› ") : "  ";
 			const maxMsgWidth = width - 2; // Account for cursor (2 chars)
 			const truncatedMsg = truncateToWidth(normalizedMessage, maxMsgWidth);
-			const messageLine = cursor + (isSelected ? theme.bold(truncatedMsg) : truncatedMsg);
+			const messageLine = cursor + theme.fg("text", isSelected ? theme.bold(truncatedMsg) : truncatedMsg);
 
 			lines.push(messageLine);
 
