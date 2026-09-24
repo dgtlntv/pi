@@ -50,7 +50,6 @@ export type ThemeColor =
 	| "dim"
 	| "text"
 	| "thinkingText"
-	| "footerText"
 	| "toolArgument"
 	| "scrollbarTrack"
 	| "scrollbarThumb"
@@ -106,7 +105,6 @@ type OptionalThemeColor =
 	| "scrollbarThumb"
 	| "thinkingMax"
 	| "searchMatchText"
-	| "footerText"
 	| "toolArgument"
 	| "mdTableBorder";
 type OptionalThemeBg = "searchMatchBg";
@@ -274,7 +272,6 @@ function withThemeColorFallbacks(colors: ThemeJson["colors"]): ThemeJson["colors
 	thinkingMax: ColorValue;
 	searchMatchBg: ColorValue;
 	searchMatchText: ColorValue;
-	footerText: ColorValue;
 	toolArgument: ColorValue;
 	mdTableBorder: ColorValue;
 } {
@@ -285,7 +282,6 @@ function withThemeColorFallbacks(colors: ThemeJson["colors"]): ThemeJson["colors
 		thinkingMax: colors.thinkingMax ?? colors.thinkingXhigh,
 		searchMatchBg: colors.searchMatchBg ?? colors.selectedBg,
 		searchMatchText: colors.searchMatchText ?? colors.text,
-		footerText: colors.footerText ?? colors.dim,
 		toolArgument: colors.toolArgument ?? colors.accent,
 		// "" is the terminal default, which is what table borders rendered before they had a token.
 		mdTableBorder: colors.mdTableBorder ?? "",
@@ -323,7 +319,6 @@ export class Theme {
 			scrollbarThumb: fgColors.scrollbarThumb ?? fgColors.text,
 			thinkingMax: fgColors.thinkingMax ?? fgColors.thinkingXhigh,
 			searchMatchText: fgColors.searchMatchText ?? fgColors.text,
-			footerText: fgColors.footerText ?? fgColors.dim,
 			toolArgument: fgColors.toolArgument ?? fgColors.accent,
 			mdTableBorder: fgColors.mdTableBorder ?? "",
 		};

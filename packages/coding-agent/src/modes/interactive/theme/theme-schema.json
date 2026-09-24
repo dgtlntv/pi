@@ -133,10 +133,6 @@
 					"$ref": "#/$defs/colorValue",
 					"description": "Thinking block text color"
 				},
-				"footerText": {
-					"$ref": "#/$defs/colorValue",
-					"description": "Footer path, usage, and model text (falls back to dim when omitted)"
-				},
 				"toolArgument": {
 					"$ref": "#/$defs/colorValue",
 					"description": "Tool call arguments such as paths and search patterns (falls back to accent when omitted)"

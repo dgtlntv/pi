@@ -162,7 +162,7 @@ export class FooterComponent implements Component {
 		}
 		statsParts.push(contextPercentStr);
 		if (areExperimentalFeaturesEnabled()) {
-			statsParts.push(`${theme.fg("footerText", "•")} ${theme.bold(theme.fg("warning", "xp"))}`);
+			statsParts.push(`${theme.fg("dim", "•")} ${theme.bold(theme.fg("warning", "xp"))}`);
 		}
 
 		let statsLeft = statsParts.join(" ");
@@ -221,15 +221,15 @@ export class FooterComponent implements Component {
 			}
 		}
 
-		// Apply footerText to each part separately. statsLeft may contain color codes (for context %)
-		// that end with a reset, which would clear an outer color wrapper. So we color the parts
+		// Apply dim to each part separately. statsLeft may contain color codes (for context %)
+		// that end with a reset, which would clear an outer dim wrapper. So we dim the parts
 		// before and after the colored section independently.
-		const styledStatsLeft = theme.fg("footerText", statsLeft);
+		const dimStatsLeft = theme.fg("dim", statsLeft);
 		const remainder = statsLine.slice(statsLeft.length); // padding + rightSide
-		const styledRemainder = theme.fg("footerText", remainder);
+		const dimRemainder = theme.fg("dim", remainder);
 
-		const pwdLine = truncateToWidth(theme.fg("footerText", pwd), width, theme.fg("footerText", "..."));
-		const lines = [pwdLine, styledStatsLeft + styledRemainder];
+		const pwdLine = truncateToWidth(theme.fg("dim", pwd), width, theme.fg("dim", "..."));
+		const lines = [pwdLine, dimStatsLeft + dimRemainder];
 
 		// Add extension statuses on a single line, sorted by key alphabetically
 		const extensionStatuses = this.footerData.getExtensionStatuses();
@@ -238,8 +238,8 @@ export class FooterComponent implements Component {
 				.sort(([a], [b]) => a.localeCompare(b))
 				.map(([, text]) => sanitizeStatusText(text));
 			const statusLine = sortedStatuses.join(" ");
-			// Truncate to terminal width with a footer-colored ellipsis for consistency with footer style
-			lines.push(truncateToWidth(statusLine, width, theme.fg("footerText", "...")));
+			// Truncate to terminal width with dim ellipsis for consistency with footer style
+			lines.push(truncateToWidth(statusLine, width, theme.fg("dim", "...")));
 		}
 
 		return lines;

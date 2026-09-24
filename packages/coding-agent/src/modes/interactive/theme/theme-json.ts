@@ -32,8 +32,7 @@ const ThemeJsonSchema = Type.Object({
 		dim: ColorValueSchema,
 		text: ColorValueSchema,
 		thinkingText: ColorValueSchema,
-		// Optional context colors (fall back to dim and accent)
-		footerText: Type.Optional(ColorValueSchema),
+		// Optional context color (falls back to accent)
 		toolArgument: Type.Optional(ColorValueSchema),
 		// Scrollbar (2 optional colors)
 		scrollbarTrack: Type.Optional(ColorValueSchema),
