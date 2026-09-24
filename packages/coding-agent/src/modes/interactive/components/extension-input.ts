@@ -66,7 +66,7 @@ export class ExtensionInputComponent extends Container implements Focusable {
 			);
 		}
 
-		this.input = new Input();
+		this.input = new Input({ textStyle: (text) => theme.fg("text", text) });
 		if (opts?.initialValue) this.input.setValue(opts.initialValue);
 		this.addChild(this.input);
 		this.addChild(new Spacer(1));

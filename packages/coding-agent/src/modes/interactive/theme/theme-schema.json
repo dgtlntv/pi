@@ -239,7 +239,7 @@
 				},
 				"mdTableBorder": {
 					"$ref": "#/$defs/colorValue",
-					"description": "Markdown table grid lines (falls back to the terminal default when omitted)"
+					"description": "Markdown table grid lines (falls back to text when omitted)"
 				},
 				"toolDiffAdded": {
 					"$ref": "#/$defs/colorValue",

@@ -283,8 +283,7 @@ function withThemeColorFallbacks(colors: ThemeJson["colors"]): ThemeJson["colors
 		searchMatchBg: colors.searchMatchBg ?? colors.selectedBg,
 		searchMatchText: colors.searchMatchText ?? colors.text,
 		toolArgument: colors.toolArgument ?? colors.accent,
-		// "" is the terminal default, which is what table borders rendered before they had a token.
-		mdTableBorder: colors.mdTableBorder ?? "",
+		mdTableBorder: colors.mdTableBorder ?? colors.text,
 	};
 }
 
@@ -320,7 +319,7 @@ export class Theme {
 			thinkingMax: fgColors.thinkingMax ?? fgColors.thinkingXhigh,
 			searchMatchText: fgColors.searchMatchText ?? fgColors.text,
 			toolArgument: fgColors.toolArgument ?? fgColors.accent,
-			mdTableBorder: fgColors.mdTableBorder ?? "",
+			mdTableBorder: fgColors.mdTableBorder ?? fgColors.text,
 		};
 		for (const [key, value] of Object.entries(colors) as [ThemeColor, string | number][]) {
 			this.fgColors.set(key, fgAnsi(value, mode));
@@ -1075,6 +1074,9 @@ function buildCliHighlightTheme(t: Theme): CliHighlightTheme {
 		link: (s: string) => t.underline(s),
 		addition: (s: string) => t.fg("toolDiffAdded", s),
 		deletion: (s: string) => t.fg("toolDiffRemoved", s),
+		// Code with no highlight scope (plain identifiers). Whitespace-only runs (such as
+		// newlines between scopes) stay unstyled so lines split cleanly.
+		default: (s: string) => (s.trim() ? t.fg("text", s) : s),
 	};
 }
 
@@ -1237,6 +1239,7 @@ export function getEditorTheme(): EditorTheme {
 	return {
 		borderColor: (text: string) => theme.fg("borderMuted", text),
 		selectList: getSelectListTheme(),
+		text: (text: string) => theme.fg("text", text),
 	};
 }
 

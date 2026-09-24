@@ -113,7 +113,7 @@ export class ModelSelectorComponent extends Container implements Focusable {
 		this.addChild(new Spacer(1));
 
 		// Create search input
-		this.searchInput = new Input();
+		this.searchInput = new Input({ textStyle: (text) => theme.fg("text", text) });
 		if (initialSearchInput) {
 			this.searchInput.setValue(initialSearchInput);
 		}

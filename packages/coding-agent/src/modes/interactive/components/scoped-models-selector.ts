@@ -141,7 +141,7 @@ export class ScopedModelsSelectorComponent extends Container implements Focusabl
 		this.addChild(new Spacer(1));
 
 		// Search input
-		this.searchInput = new Input();
+		this.searchInput = new Input({ textStyle: (text) => theme.fg("text", text) });
 		this.addChild(this.searchInput);
 		this.addChild(new Spacer(1));
 

@@ -17,6 +17,8 @@ export interface InputOptions {
 	prompt?: string;
 	placeholder?: string;
 	placeholderStyle?: (text: string) => string;
+	/** Style for typed text. Unstyled (terminal default) when omitted. */
+	textStyle?: (text: string) => string;
 }
 
 /**
@@ -28,6 +30,7 @@ export class Input implements Component, Focusable {
 	private readonly prompt: string;
 	private readonly placeholder: string;
 	private readonly placeholderStyle: (text: string) => string;
+	private readonly textStyle: (text: string) => string;
 	private renderedStartColumn = 0;
 	public onSubmit?: (value: string) => void;
 	public onEscape?: () => void;
@@ -50,6 +53,7 @@ export class Input implements Component, Focusable {
 		this.prompt = options.prompt ?? "> ";
 		this.placeholder = options.placeholder ?? "";
 		this.placeholderStyle = options.placeholderStyle ?? ((text) => text);
+		this.textStyle = options.textStyle ?? ((text) => text);
 	}
 
 	getValue(): string {
@@ -481,8 +485,8 @@ export class Input implements Component, Focusable {
 		const marker = this.focused ? CURSOR_MARKER : "";
 
 		// Use inverse video to show cursor
-		const cursorChar = `\x1b[7m${atCursor}\x1b[27m`; // ESC[7m = reverse video, ESC[27m = normal
-		const textWithCursor = beforeCursor + marker + cursorChar + afterCursor;
+		const cursorChar = `\x1b[7m${this.textStyle(atCursor)}\x1b[27m`; // ESC[7m = reverse video, ESC[27m = normal
+		const textWithCursor = this.textStyle(beforeCursor) + marker + cursorChar + this.textStyle(afterCursor);
 
 		// Calculate visual width
 		const visualLength = visibleWidth(textWithCursor);

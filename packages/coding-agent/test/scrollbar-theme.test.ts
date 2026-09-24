@@ -65,22 +65,16 @@ describe("fullscreen theme colors", () => {
 		expect(loadedTheme.getFgAnsi("searchMatchText")).toBe(loadedTheme.getFgAnsi("text"));
 	});
 
-	it.each([["toolArgument", "accent"]] as const)("falls back %s to %s when omitted", (token, fallback) => {
+	it.each([
+		["toolArgument", "accent"],
+		["mdTableBorder", "text"],
+	] as const)("falls back %s to %s when omitted", (token, fallback) => {
 		const themeJson = loadDarkTheme();
 		themeJson.name = `missing-${token}-theme`;
 		delete themeJson.colors[token];
 
 		const loadedTheme = loadThemeFromPath(writeTheme(themeJson), "truecolor");
 		expect(loadedTheme.getFgAnsi(token)).toBe(loadedTheme.getFgAnsi(fallback));
-	});
-
-	it.each(["mdTableBorder"] as const)("falls back %s to the terminal default", (token) => {
-		const themeJson = loadDarkTheme();
-		themeJson.name = `missing-${token}-theme`;
-		delete themeJson.colors[token];
-
-		const loadedTheme = loadThemeFromPath(writeTheme(themeJson), "truecolor");
-		expect(loadedTheme.getFgAnsi(token)).toBe("\x1b[39m");
 	});
 
 	it("uses explicitly configured context colors", () => {

@@ -99,7 +99,7 @@ Seven colors are optional and inherit another color when omitted:
 | `searchMatchText` | `text` |
 | `thinkingMax` | `thinkingXhigh` |
 | `toolArgument` | `accent` |
-| `mdTableBorder` | terminal default (`""`) |
+| `mdTableBorder` | `text` |
 
 If `export` colors are omitted, Pi derives HTML page and panel backgrounds from `userMessageBg`.
 

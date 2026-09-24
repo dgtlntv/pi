@@ -237,6 +237,8 @@ interface LayoutLine {
 export interface EditorTheme {
 	borderColor: (str: string) => string;
 	selectList: SelectListTheme;
+	/** Style for typed text. Unstyled (terminal default) when omitted. */
+	text?: (str: string) => string;
 }
 
 export interface EditorOptions {
@@ -566,8 +568,9 @@ export class Editor implements Component, Focusable {
 		// autocomplete (e.g. slash-command menu) is visible.
 		const emitCursorMarker = this.focused;
 
+		const textStyle = this.theme.text ?? ((text: string) => text);
 		for (const layoutLine of visibleLines) {
-			let displayText = layoutLine.text;
+			let displayText = textStyle(layoutLine.text);
 			let lineVisibleWidth = visibleWidth(layoutLine.text);
 			let cursorInPadding = false;
 
@@ -585,13 +588,13 @@ export class Editor implements Component, Focusable {
 					const afterGraphemes = [...this.segment(after, "grapheme")];
 					const firstGrapheme = afterGraphemes[0]?.segment || "";
 					const restAfter = after.slice(firstGrapheme.length);
-					const cursor = `\x1b[7m${firstGrapheme}\x1b[0m`;
-					displayText = before + marker + cursor + restAfter;
+					const cursor = `\x1b[7m${textStyle(firstGrapheme)}\x1b[0m`;
+					displayText = textStyle(before) + marker + cursor + textStyle(restAfter);
 					// lineVisibleWidth stays the same - we're replacing, not adding
 				} else {
 					// Cursor is at the end - add highlighted space
 					const cursor = "\x1b[7m \x1b[0m";
-					displayText = before + marker + cursor;
+					displayText = textStyle(before) + marker + cursor;
 					lineVisibleWidth = lineVisibleWidth + 1;
 					// If cursor overflows content width into the padding, flag it
 					if (lineVisibleWidth > contentWidth && paddingX > 0) {

@@ -330,7 +330,7 @@ class SessionList implements Component, Focusable {
 	) {
 		this.allSessions = sessions;
 		this.filteredSessions = [];
-		this.searchInput = new Input();
+		this.searchInput = new Input({ textStyle: (text) => theme.fg("text", text) });
 		this.showCwd = showCwd;
 		this.sortMode = sortMode;
 		this.nameFilter = nameFilter;
@@ -723,7 +723,7 @@ export class SessionSelectorComponent extends Container implements Focusable {
 	private allLoad: AbortController | null = null;
 
 	private mode: "list" | "rename" = "list";
-	private renameInput = new Input();
+	private renameInput = new Input({ textStyle: (text) => theme.fg("text", text) });
 	private renameTargetPath: string | null = null;
 
 	// Focusable implementation - propagate to sessionList for IME cursor positioning
