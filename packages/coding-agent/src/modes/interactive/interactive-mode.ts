@@ -152,6 +152,7 @@ import {
 	formatAuthSelectorProviderType,
 	OAuthSelectorComponent,
 } from "./components/oauth-selector.ts";
+import { PI_LOGO_LINES } from "./components/pi-logo.ts";
 import { ScopedModelsSelectorComponent } from "./components/scoped-models-selector.ts";
 import { SessionSelectorComponent } from "./components/session-selector.ts";
 import { SettingsSelectorComponent } from "./components/settings-selector.ts";
@@ -955,7 +956,9 @@ export class InteractiveMode {
 
 		// Add header with keybindings from config (unless silenced)
 		if (this.options.verbose || !this.settingsManager.getQuietStartup()) {
-			const logo = theme.bold(theme.fg("accent", APP_NAME)) + theme.fg("dim", ` v${this.version}`);
+			// Brand logo (fixed colors) with the version beside its top row.
+			const version = theme.fg("dim", `v${this.version}`);
+			const logo = `${PI_LOGO_LINES[0]} ${version}\n${PI_LOGO_LINES[1]}`;
 
 			// Build startup instructions using keybinding hint helpers
 			const hint = (keybinding: AppKeybinding, description: string) => keyHint(keybinding, description);
@@ -997,7 +1000,8 @@ export class InteractiveMode {
 				`Pi can explain its own features and look up its docs. Ask it how to use or extend Pi.`,
 			);
 			this.builtInHeader = new ExpandableText(
-				() => `${logo}\n${compactInstructions}\n${compactOnboarding}\n\n${onboarding}`,
+				() =>
+					`${PI_LOGO_LINES[0]} ${version}\n${PI_LOGO_LINES[1]} ${compactInstructions}\n${compactOnboarding}\n\n${onboarding}`,
 				() => `${logo}\n${expandedInstructions}\n\n${onboarding}`,
 				this.getStartupExpansionState(),
 				1,
