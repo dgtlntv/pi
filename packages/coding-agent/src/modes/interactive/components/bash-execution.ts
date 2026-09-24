@@ -142,11 +142,11 @@ export class BashExecutionComponent extends Container {
 		if (availableLines.length > 0) {
 			if (this.expanded) {
 				// Show all lines
-				const displayText = availableLines.map((line) => theme.fg("muted", line)).join("\n");
+				const displayText = availableLines.map((line) => theme.fg("toolOutput", line)).join("\n");
 				this.contentContainer.addChild(new Text(`\n${displayText}`, 1, 0));
 			} else {
 				// Use shared visual truncation utility with width-aware caching
-				const styledOutput = previewLogicalLines.map((line) => theme.fg("muted", line)).join("\n");
+				const styledOutput = previewLogicalLines.map((line) => theme.fg("toolOutput", line)).join("\n");
 				const styledInput = `\n${styledOutput}`;
 				let cachedWidth: number | undefined;
 				let cachedLines: string[] | undefined;

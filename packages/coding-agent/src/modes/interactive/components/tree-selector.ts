@@ -783,12 +783,12 @@ class TreeList implements Component {
 				if (role === "user") {
 					const msgWithContent = msg as { content?: unknown };
 					const content = normalize(this.extractContent(msgWithContent.content));
-					result = theme.fg("accent", "user: ") + content;
+					result = theme.fg("accent", "user: ") + theme.fg("text", content);
 				} else if (role === "assistant") {
 					const msgWithContent = msg as { content?: unknown; stopReason?: string; errorMessage?: string };
 					const textContent = normalize(this.extractContent(msgWithContent.content));
 					if (textContent) {
-						result = theme.fg("success", "assistant: ") + textContent;
+						result = theme.fg("success", "assistant: ") + theme.fg("text", textContent);
 					} else if (msgWithContent.stopReason === "aborted") {
 						result = theme.fg("success", "assistant: ") + theme.fg("muted", "(aborted)");
 					} else if (msgWithContent.errorMessage) {
@@ -821,12 +821,12 @@ class TreeList implements Component {
 								.filter((c): c is { type: "text"; text: string } => c.type === "text")
 								.map((c) => c.text)
 								.join("");
-				result = theme.fg("customMessageLabel", `[${entry.customType}]: `) + normalize(content);
+				result = theme.fg("customMessageLabel", `[${entry.customType}]: `) + theme.fg("text", normalize(content));
 				break;
 			}
 			case "compaction": {
 				const tokens = Math.round(entry.tokensBefore / 1000);
-				result = theme.fg("borderAccent", `[compaction: ${tokens}k tokens]`);
+				result = theme.fg("customMessageLabel", `[compaction: ${tokens}k tokens]`);
 				break;
 			}
 			case "branch_summary":

@@ -352,6 +352,32 @@ describe("Markdown component", () => {
 			assert.ok(plainLines.some((line) => line.includes("─")));
 		});
 
+		it("styles table grid glyphs with tableBorder but not cell text", () => {
+			const tableBorder = (text: string) => chalk.red(text);
+			const markdown = new Markdown(
+				`| Name | Age |
+| --- | --- |
+| Alice | 30 |`,
+				0,
+				0,
+				{ ...defaultMarkdownTheme, tableBorder },
+			);
+
+			const lines = markdown.render(80);
+			const red = "\x1b[31m";
+			assert.ok(lines[0]?.startsWith(`${red}\u250c`), "top border is styled");
+			const row = lines.find((line) => stripAnsi(line).includes("Alice"));
+			assert.ok(row?.startsWith(`${red}\u2502 `), "row borders are styled");
+			assert.ok(!row?.includes(`${red}Alice`), "cell text is not styled as a border");
+			assert.deepStrictEqual(
+				lines.map(stripAnsi),
+				new Markdown("| Name | Age |\n| --- | --- |\n| Alice | 30 |", 0, 0, defaultMarkdownTheme)
+					.render(80)
+					.map(stripAnsi),
+				"layout is unchanged",
+			);
+		});
+
 		it("should render row dividers between data rows", () => {
 			const markdown = new Markdown(
 				`| Name | Age |

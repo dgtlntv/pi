@@ -50,6 +50,8 @@ export type ThemeColor =
 	| "dim"
 	| "text"
 	| "thinkingText"
+	| "footerText"
+	| "toolArgument"
 	| "scrollbarTrack"
 	| "scrollbarThumb"
 	| "searchMatchText"
@@ -68,6 +70,7 @@ export type ThemeColor =
 	| "mdQuoteBorder"
 	| "mdHr"
 	| "mdListBullet"
+	| "mdTableBorder"
 	| "toolDiffAdded"
 	| "toolDiffRemoved"
 	| "toolDiffContext"
@@ -98,7 +101,14 @@ export type ThemeBg =
 	| "toolSuccessBg"
 	| "toolErrorBg";
 
-type OptionalThemeColor = "scrollbarTrack" | "scrollbarThumb" | "thinkingMax" | "searchMatchText";
+type OptionalThemeColor =
+	| "scrollbarTrack"
+	| "scrollbarThumb"
+	| "thinkingMax"
+	| "searchMatchText"
+	| "footerText"
+	| "toolArgument"
+	| "mdTableBorder";
 type OptionalThemeBg = "searchMatchBg";
 
 type ColorMode = "truecolor" | "256color";
@@ -264,6 +274,9 @@ function withThemeColorFallbacks(colors: ThemeJson["colors"]): ThemeJson["colors
 	thinkingMax: ColorValue;
 	searchMatchBg: ColorValue;
 	searchMatchText: ColorValue;
+	footerText: ColorValue;
+	toolArgument: ColorValue;
+	mdTableBorder: ColorValue;
 } {
 	return {
 		...colors,
@@ -272,6 +285,10 @@ function withThemeColorFallbacks(colors: ThemeJson["colors"]): ThemeJson["colors
 		thinkingMax: colors.thinkingMax ?? colors.thinkingXhigh,
 		searchMatchBg: colors.searchMatchBg ?? colors.selectedBg,
 		searchMatchText: colors.searchMatchText ?? colors.text,
+		footerText: colors.footerText ?? colors.dim,
+		toolArgument: colors.toolArgument ?? colors.accent,
+		// "" is the terminal default, which is what table borders rendered before they had a token.
+		mdTableBorder: colors.mdTableBorder ?? "",
 	};
 }
 
@@ -306,6 +323,9 @@ export class Theme {
 			scrollbarThumb: fgColors.scrollbarThumb ?? fgColors.text,
 			thinkingMax: fgColors.thinkingMax ?? fgColors.thinkingXhigh,
 			searchMatchText: fgColors.searchMatchText ?? fgColors.text,
+			footerText: fgColors.footerText ?? fgColors.dim,
+			toolArgument: fgColors.toolArgument ?? fgColors.accent,
+			mdTableBorder: fgColors.mdTableBorder ?? "",
 		};
 		for (const [key, value] of Object.entries(colors) as [ThemeColor, string | number][]) {
 			this.fgColors.set(key, fgAnsi(value, mode));
@@ -1179,6 +1199,7 @@ export function getMarkdownTheme(): MarkdownTheme {
 		quoteBorder: (text: string) => theme.fg("mdQuoteBorder", text),
 		hr: (text: string) => theme.fg("mdHr", text),
 		listBullet: (text: string) => theme.fg("mdListBullet", text),
+		tableBorder: (text: string) => theme.fg("mdTableBorder", text),
 		bold: (text: string) => theme.bold(text),
 		italic: (text: string) => theme.italic(text),
 		underline: (text: string) => theme.underline(text),

@@ -208,6 +208,8 @@ export interface MarkdownTheme {
 	quoteBorder: (text: string) => string;
 	hr: (text: string) => string;
 	listBullet: (text: string) => string;
+	/** Style for table grid glyphs (not cell text). Unstyled when omitted. */
+	tableBorder?: (text: string) => string;
 	bold: (text: string) => string;
 	italic: (text: string) => string;
 	strikethrough: (text: string) => string;
@@ -847,6 +849,7 @@ export class Markdown implements Component {
 	): string[] {
 		const lines: string[] = [];
 		const numCols = token.header.length;
+		const border = this.theme.tableBorder ?? ((text: string) => text);
 
 		if (numCols === 0) {
 			return lines;
@@ -958,7 +961,7 @@ export class Markdown implements Component {
 
 		// Render top border
 		const topBorderCells = columnWidths.map((w) => "─".repeat(w));
-		lines.push(`┌─${topBorderCells.join("─┬─")}─┐`);
+		lines.push(border(`┌─${topBorderCells.join("─┬─")}─┐`));
 
 		// Render header with wrapping
 		const headerCellLines: string[][] = token.header.map((cell, i) => {
@@ -973,12 +976,12 @@ export class Markdown implements Component {
 				const padded = text + " ".repeat(Math.max(0, columnWidths[colIdx] - visibleWidth(text)));
 				return this.theme.bold(padded);
 			});
-			lines.push(`│ ${rowParts.join(" │ ")} │`);
+			lines.push(`${border("│ ")}${rowParts.join(border(" │ "))}${border(" │")}`);
 		}
 
 		// Render separator
 		const separatorCells = columnWidths.map((w) => "─".repeat(w));
-		const separatorLine = `├─${separatorCells.join("─┼─")}─┤`;
+		const separatorLine = border(`├─${separatorCells.join("─┼─")}─┤`);
 		lines.push(separatorLine);
 
 		// Render rows with wrapping
@@ -995,7 +998,7 @@ export class Markdown implements Component {
 					const text = cellLines[lineIdx] || "";
 					return text + " ".repeat(Math.max(0, columnWidths[colIdx] - visibleWidth(text)));
 				});
-				lines.push(`│ ${rowParts.join(" │ ")} │`);
+				lines.push(`${border("│ ")}${rowParts.join(border(" │ "))}${border(" │")}`);
 			}
 
 			if (rowIndex < token.rows.length - 1) {
@@ -1005,7 +1008,7 @@ export class Markdown implements Component {
 
 		// Render bottom border
 		const bottomBorderCells = columnWidths.map((w) => "─".repeat(w));
-		lines.push(`└─${bottomBorderCells.join("─┴─")}─┘`);
+		lines.push(border(`└─${bottomBorderCells.join("─┴─")}─┘`));
 
 		if (nextTokenType && nextTokenType !== "space") {
 			lines.push(""); // Add spacing after table

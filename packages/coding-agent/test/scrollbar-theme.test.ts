@@ -65,6 +65,40 @@ describe("fullscreen theme colors", () => {
 		expect(loadedTheme.getFgAnsi("searchMatchText")).toBe(loadedTheme.getFgAnsi("text"));
 	});
 
+	it.each([
+		["footerText", "dim"],
+		["toolArgument", "accent"],
+	] as const)("falls back %s to %s when omitted", (token, fallback) => {
+		const themeJson = loadDarkTheme();
+		themeJson.name = `missing-${token}-theme`;
+		delete themeJson.colors[token];
+
+		const loadedTheme = loadThemeFromPath(writeTheme(themeJson), "truecolor");
+		expect(loadedTheme.getFgAnsi(token)).toBe(loadedTheme.getFgAnsi(fallback));
+	});
+
+	it.each(["mdTableBorder"] as const)("falls back %s to the terminal default", (token) => {
+		const themeJson = loadDarkTheme();
+		themeJson.name = `missing-${token}-theme`;
+		delete themeJson.colors[token];
+
+		const loadedTheme = loadThemeFromPath(writeTheme(themeJson), "truecolor");
+		expect(loadedTheme.getFgAnsi(token)).toBe("\x1b[39m");
+	});
+
+	it("uses explicitly configured context colors", () => {
+		const themeJson = loadDarkTheme();
+		themeJson.name = "custom-context-theme";
+		themeJson.colors.footerText = "#010203";
+		themeJson.colors.toolArgument = "#040506";
+		themeJson.colors.mdTableBorder = "#0a0b0c";
+
+		const loadedTheme = loadThemeFromPath(writeTheme(themeJson), "truecolor");
+		expect(loadedTheme.getFgAnsi("footerText")).toBe("\x1b[38;2;1;2;3m");
+		expect(loadedTheme.getFgAnsi("toolArgument")).toBe("\x1b[38;2;4;5;6m");
+		expect(loadedTheme.getFgAnsi("mdTableBorder")).toBe("\x1b[38;2;10;11;12m");
+	});
+
 	it("uses explicitly configured search highlight colors", () => {
 		const themeJson = loadDarkTheme();
 		themeJson.name = "custom-search-theme";

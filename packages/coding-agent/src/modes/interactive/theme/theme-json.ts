@@ -32,6 +32,9 @@ const ThemeJsonSchema = Type.Object({
 		dim: ColorValueSchema,
 		text: ColorValueSchema,
 		thinkingText: ColorValueSchema,
+		// Optional context colors (fall back to dim and accent)
+		footerText: Type.Optional(ColorValueSchema),
+		toolArgument: Type.Optional(ColorValueSchema),
 		// Scrollbar (2 optional colors)
 		scrollbarTrack: Type.Optional(ColorValueSchema),
 		scrollbarThumb: Type.Optional(ColorValueSchema),
@@ -60,6 +63,7 @@ const ThemeJsonSchema = Type.Object({
 		mdQuoteBorder: ColorValueSchema,
 		mdHr: ColorValueSchema,
 		mdListBullet: ColorValueSchema,
+		mdTableBorder: Type.Optional(ColorValueSchema),
 		// Tool Diffs (3 colors)
 		toolDiffAdded: ColorValueSchema,
 		toolDiffRemoved: ColorValueSchema,

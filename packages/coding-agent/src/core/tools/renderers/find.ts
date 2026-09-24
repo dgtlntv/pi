@@ -23,7 +23,7 @@ function formatFindCall(args: { pattern: string; path?: string; limit?: number }
 	let text =
 		theme.fg("toolTitle", theme.bold("find")) +
 		" " +
-		(pattern === null ? invalidArg : theme.fg("accent", pattern || "")) +
+		(pattern === null ? invalidArg : theme.fg("toolArgument", pattern || "")) +
 		theme.fg("toolOutput", ` in ${path === null ? invalidArg : path}`);
 	if (limit !== undefined) {
 		text += theme.fg("toolOutput", ` (limit ${limit})`);

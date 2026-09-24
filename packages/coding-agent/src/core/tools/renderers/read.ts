@@ -90,7 +90,7 @@ function formatCompactReadCall(
 	args: ReadRenderArgs | undefined,
 	theme: Theme,
 ): string {
-	const expandHint = theme.fg("dim", ` (${keyText("app.tools.expand")} to expand)`);
+	const expandHint = theme.fg("muted", ` (${keyText("app.tools.expand")} to expand)`);
 	if (classification.kind === "skill") {
 		return (
 			theme.fg("customMessageLabel", `\x1b[1m[skill]\x1b[22m `) +
@@ -103,7 +103,7 @@ function formatCompactReadCall(
 	return (
 		theme.fg("toolTitle", theme.bold(`read ${classification.kind}`)) +
 		" " +
-		theme.fg("accent", classification.label) +
+		theme.fg("toolArgument", classification.label) +
 		formatReadLineRange(args, theme) +
 		expandHint
 	);

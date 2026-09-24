@@ -194,14 +194,13 @@ export function getAltScreenSearchMatchKey(match: AltScreenSearchMatch): string 
 	return first && last ? `${first.row}:${first.startCol}:${last.row}:${last.endCol}` : "";
 }
 
+const faint = (text: string): string => `\x1b[2m${text}\x1b[22m`;
+
 export class AltScreenSearchComponent implements Component, Focusable {
-	private readonly input = new Input({
-		prompt: " ",
-		placeholder: "Find in transcript",
-		placeholderStyle: (text) => `\x1b[2m${text}\x1b[22m`,
-	});
+	private readonly input: Input;
 	private readonly onQueryChange: (query: string) => void;
 	private readonly navigationButtonStyle: (text: string, hovered: boolean) => string;
+	private readonly secondaryTextStyle: (text: string) => string;
 	private resultCount = 0;
 	private resultIndex = -1;
 	private previousButtonStart = -1;
@@ -214,9 +213,12 @@ export class AltScreenSearchComponent implements Component, Focusable {
 	constructor(
 		onQueryChange: (query: string) => void,
 		navigationButtonStyle: (text: string, hovered: boolean) => string = (text) => text,
+		secondaryTextStyle: (text: string) => string = faint,
 	) {
 		this.onQueryChange = onQueryChange;
 		this.navigationButtonStyle = navigationButtonStyle;
+		this.secondaryTextStyle = secondaryTextStyle;
+		this.input = new Input({ prompt: " ", placeholder: "Find in transcript", placeholderStyle: secondaryTextStyle });
 	}
 
 	get focused(): boolean {
@@ -281,7 +283,7 @@ export class AltScreenSearchComponent implements Component, Focusable {
 				: `${this.resultIndex + 1}/${this.resultCount}`;
 		const resultSpace = Math.max(0, innerWidth - 3);
 		const visibleResult = truncateToWidth(result, resultSpace, "");
-		const resultText = visibleResult ? `\x1b[2m ${visibleResult} \x1b[22m` : "";
+		const resultText = visibleResult ? this.secondaryTextStyle(` ${visibleResult} `) : "";
 		const inputWidth = Math.max(0, innerWidth - visibleWidth(resultText));
 		const inputLine = truncateToWidth(this.input.render(Math.max(1, inputWidth))[0] ?? "", inputWidth, "");
 		const inputPadding = " ".repeat(Math.max(0, inputWidth - visibleWidth(inputLine)));

@@ -639,6 +639,23 @@ describe("TuiAltScreen", () => {
 		assert.ok(!populated.some((line) => line.includes("Find in transcript")));
 	});
 
+	it("styles the transcript search placeholder and result count with a custom secondary style", () => {
+		const green = (text: string) => `\x1b[32m${text}\x1b[39m`;
+		const component = new AltScreenSearchComponent(
+			() => {},
+			(text) => text,
+			green,
+		);
+		// The first placeholder character carries the cursor, so it is styled separately.
+		const empty = component.render(48);
+		assert.ok(empty[1]?.includes(green("ind in transcript")));
+		assert.ok(!empty[1]?.includes("\x1b[2m"));
+
+		component.handleInput("n");
+		component.setResult(0, 2);
+		assert.ok(component.render(48)[1]?.includes(green(" 1/2 ")));
+	});
+
 	it("navigates transcript search with hoverable arrow buttons and toggles it with its shortcut", async () => {
 		const terminal = new RecordingTerminal(120, 6);
 		const tui = new TuiAltScreen(terminal, undefined, undefined, {
