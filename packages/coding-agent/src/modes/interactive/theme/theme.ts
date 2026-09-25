@@ -436,15 +436,20 @@ export function isGeneratedThemeName(name: string): name is GeneratedThemeName {
 }
 
 /** What the terminal reported about its colors; undefined where a query failed or has not run. */
-let terminalColors: { background?: string; palette?: string[] } = {};
+let terminalColors: { background?: string; foreground?: string; palette?: string[] } = {};
 
 /**
  * Set the terminal's background and ANSI palette for generated themes. Re-apply the active theme
  * afterwards for it to take effect.
  */
-export function setTerminalColors(colors: { background?: RgbColor; palette?: RgbColor[] }): void {
+export function setTerminalColors(colors: {
+	background?: RgbColor;
+	foreground?: RgbColor;
+	palette?: RgbColor[];
+}): void {
 	terminalColors = {
 		background: colors.background ? rgbColorToHex(colors.background) : undefined,
+		foreground: colors.foreground ? rgbColorToHex(colors.foreground) : undefined,
 		palette: colors.palette?.map(rgbColorToHex),
 	};
 }
@@ -459,11 +464,12 @@ function generatedThemeMode(name: GeneratedThemeName): PerceptualMode {
 
 function generatedThemeJson(name: GeneratedThemeName): ThemeJson {
 	const mode = generatedThemeMode(name);
-	const { background, palette } = terminalColors;
+	const { background, foreground, palette } = terminalColors;
 	const colors = generatePerceptualColors({
 		background: background && perceptualMode(background) === mode ? background : FALLBACK_BACKGROUNDS[mode],
 		mode,
 		palette: name === "system" ? palette : undefined,
+		foreground: name === "system" ? foreground : undefined,
 	});
 	return { name, colors } as ThemeJson;
 }

@@ -13,6 +13,7 @@ import { InteractiveThemeController } from "../src/modes/interactive/theme/theme
 function createUi() {
 	const queryTerminalBackgroundColor = vi.fn();
 	const queryTerminalPalette = vi.fn();
+	const queryTerminalForegroundColor = vi.fn();
 	const queryTerminalColorScheme = vi.fn();
 	const setTerminalColorSchemeNotifications = vi.fn();
 	let terminalColorSchemeListener: ((terminalTheme: TerminalTheme) => void) | undefined;
@@ -27,6 +28,7 @@ function createUi() {
 		}),
 		queryTerminalBackgroundColor,
 		queryTerminalPalette,
+		queryTerminalForegroundColor,
 		queryTerminalColorScheme,
 	} as unknown as TUI;
 	return {

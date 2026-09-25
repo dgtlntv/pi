@@ -225,6 +225,12 @@ const TOKEN_SLOTS: Record<string, number> = {
 	thinkingMax: 1,
 };
 
+/** Text-level tokens that take the terminal's foreground in the `system` theme. */
+const FOREGROUND_TOKENS = ["text", "userMessageText", "toolTitle"];
+
+/** How much more perceptual contrast than `muted` the terminal foreground keeps, at least. */
+const FOREGROUND_MARGIN = 10;
+
 /** Every token a generated theme emits. */
 export const PERCEPTUAL_THEME_TOKENS = Object.keys(TOKEN_FAMILIES);
 
@@ -328,6 +334,13 @@ export interface PerceptualThemeOptions {
 	 * palette's. Text stays faithful to the palette; panels near the background stay calm.
 	 */
 	palette?: string[];
+	/**
+	 * The terminal's foreground, `#rrggbb`. Text-level tokens (`text`, `userMessageText`,
+	 * `toolTitle`) become `""`, the terminal's default foreground, wherever it keeps at least
+	 * `muted`'s contrast plus a margin on their backgrounds; otherwise they get the foreground's
+	 * hue and saturation with just enough lightness to do so.
+	 */
+	foreground?: string;
 }
 
 /**
@@ -339,6 +352,7 @@ export function generatePerceptualColors({
 	background,
 	mode,
 	palette,
+	foreground,
 }: PerceptualThemeOptions): Record<string, string> {
 	const sources = palette?.map(hexToOkhsl);
 	const colorOf = (token: string, lightness: number): string => {
@@ -347,10 +361,7 @@ export function generatePerceptualColors({
 			const { min, max } = family.saturation;
 			return okhslToHex(family.hue, min + (max - min) * bellWeight(lightness), lightness);
 		}
-		const source = sources[paletteSlot(token)];
-		const anchor = saturationCurve(family, source.lightness);
-		const falloff = anchor > 0 ? Math.min(1, saturationCurve(family, lightness) / anchor) : 1;
-		return okhslToHex(source.hue, source.saturation * falloff, lightness);
+		return anchoredColor(sources[paletteSlot(token)], family, lightness);
 	};
 
 	let colors = solve(colorOf, mode, background, 0);
@@ -367,7 +378,45 @@ export function generatePerceptualColors({
 	}
 	// Fully relaxed minimums are 0, which every background reaches.
 	const solved = colors ?? {};
+	if (foreground) applyForeground(solved, foreground, mode);
 	return Object.fromEntries(PERCEPTUAL_THEME_TOKENS.map((token) => [token, solved[token]]));
+}
+
+/**
+ * A palette color's hue at another lightness. Its saturation applies at its own lightness and falls
+ * off toward black and white along the family's saturation curve, never rising above it.
+ */
+function anchoredColor(
+	source: { hue: number; saturation: number; lightness: number },
+	family: ColorFamily,
+	lightness: number,
+): string {
+	const anchor = saturationCurve(family, source.lightness);
+	const falloff = anchor > 0 ? Math.min(1, saturationCurve(family, lightness) / anchor) : 1;
+	return okhslToHex(source.hue, source.saturation * falloff, lightness);
+}
+
+/** Use the terminal's foreground for text-level tokens, never fainter than `muted` plus a margin. */
+function applyForeground(colors: Record<string, string>, foreground: string, mode: PerceptualMode): void {
+	const source = hexToOkhsl(foreground);
+	const lighter = mode === "dark";
+	for (const token of FOREGROUND_TOKENS) {
+		const floors = RULES.filter((candidate) => candidate.token === token)
+			.flatMap(({ backgrounds }) => backgrounds)
+			.map((name) => ({
+				background: colors[name],
+				minimum: Math.abs(perceptualContrast(colors.muted, colors[name])) + FOREGROUND_MARGIN,
+			}));
+		if (floors.every(({ background, minimum }) => Math.abs(perceptualContrast(foreground, background)) >= minimum)) {
+			colors[token] = "";
+			continue;
+		}
+		// Too faint: keep the foreground's hue and saturation, with just enough lightness.
+		const targets = floors.map(({ background, minimum }) => targetLuminance(minimum, background, lighter, true));
+		const target = lighter ? Math.max(...targets) : Math.min(...targets);
+		if (targets.some(Number.isNaN) || target < 0 || target > 1) continue;
+		colors[token] = anchoredColor(source, FAMILIES[TOKEN_FAMILIES[token]], grayLightness(target));
+	}
 }
 
 /** Format an `{ r, g, b }` color (0-255 channels) as `#rrggbb`. */

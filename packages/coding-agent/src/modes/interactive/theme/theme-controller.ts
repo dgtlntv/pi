@@ -154,7 +154,7 @@ export class InteractiveThemeController {
 	}
 
 	/**
-	 * Query the terminal's background and ANSI palette when a generated theme is involved, so it
+	 * Query the terminal's background, foreground, and ANSI palette when a generated theme is involved, so it
 	 * renders against the actual terminal colors. Queries that fail leave the colors unknown, and
 	 * generated themes fall back to their default backgrounds and hues.
 	 */
@@ -167,11 +167,12 @@ export class InteractiveThemeController {
 				return undefined;
 			}
 		};
-		const [background, palette] = await Promise.all([
+		const [background, foreground, palette] = await Promise.all([
 			query(() => this.ui.queryTerminalBackgroundColor({ timeoutMs: QUERY_TIMEOUT_MS })),
+			query(() => this.ui.queryTerminalForegroundColor({ timeoutMs: QUERY_TIMEOUT_MS })),
 			query(() => this.ui.queryTerminalPalette({ timeoutMs: QUERY_TIMEOUT_MS })),
 		]);
-		setTerminalColors({ background, palette });
+		setTerminalColors({ background, foreground, palette });
 	}
 
 	private notifyChanged(): void {

@@ -150,6 +150,25 @@ describe("system theme", () => {
 		expect(hexToOkhsl(colors.success).saturation).toBeGreaterThan(0.9);
 	});
 
+	it("uses the terminal's foreground for text, never fainter than muted plus a margin", () => {
+		const clear = generatePerceptualColors({
+			background: "#282c34",
+			mode: "dark",
+			palette: GHOSTTY_PALETTE,
+			foreground: "#ffffff",
+		});
+		expect([clear.text, clear.userMessageText, clear.toolTitle]).toEqual(["", "", ""]);
+
+		const faint = generatePerceptualColors({
+			background: "#282c34",
+			mode: "dark",
+			palette: GHOSTTY_PALETTE,
+			foreground: "#5f7f7f",
+		});
+		expect(contrast(faint.text, "#282c34")).toBeGreaterThanOrEqual(contrast(faint.muted, "#282c34") + 9.5);
+		expect(hueDistance(hexToOkhsl(faint.text).hue, hexToOkhsl("#5f7f7f").hue)).toBeLessThan(8);
+	});
+
 	it("maps families without an ANSI slot onto existing slots", () => {
 		expect(paletteSlot("syntaxString")).toBe(2);
 		expect(paletteSlot("syntaxNumber")).toBe(5);

@@ -10,7 +10,7 @@ Pi generates its built-in themes when it starts. It asks the terminal for its ba
 |---|---|
 | `dark` | Light colors, generated against your terminal background when it is dark, otherwise against `#282c34`. |
 | `light` | Dark colors, generated against your terminal background when it is light, otherwise against `#f7f6f6`. |
-| `system` | Hues and saturation from your terminal's ANSI palette. Pi picks dark or light by whether white or black text has more contrast on the background. If the terminal does not report its palette, `system` looks like `dark` or `light`. |
+| `system` | Hues and saturation from your terminal's ANSI palette, and body text in your terminal's foreground color (made a little more prominent if it would be fainter than secondary text). Pi picks dark or light by whether white or black text has more contrast on the background. If the terminal does not report its palette, `system` looks like `dark` or `light`. |
 
 Pi regenerates the active built-in theme when the terminal reports an appearance change.
 
