@@ -576,8 +576,9 @@ export class Editor implements Component, Focusable {
 
 			// Add cursor if this line has it
 			if (layoutLine.hasCursor && layoutLine.cursorPos !== undefined) {
-				const before = displayText.slice(0, layoutLine.cursorPos);
-				const after = displayText.slice(layoutLine.cursorPos);
+				// Split the raw text: cursorPos indexes it, not the styled string.
+				const before = layoutLine.text.slice(0, layoutLine.cursorPos);
+				const after = layoutLine.text.slice(layoutLine.cursorPos);
 
 				// Hardware cursor marker (zero-width, emitted before fake cursor for IME positioning)
 				const marker = emitCursorMarker ? CURSOR_MARKER : "";

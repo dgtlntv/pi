@@ -741,6 +741,23 @@ describe("Editor component", () => {
 		});
 	});
 
+	describe("Text style", () => {
+		it("styles typed text without leaking escape codes around the cursor", () => {
+			const width = 20;
+			const text = (value: string) => `\x1b[38;2;225;226;227m${value}\x1b[39m`;
+			const editor = new Editor(createTestTUI(width), { ...defaultEditorTheme, text });
+			editor.setText("hello");
+
+			const atEnd = stripVTControlCharacters(editor.render(width)[1]!);
+			assert.ok(atEnd.startsWith("hello "), JSON.stringify(atEnd));
+
+			editor.handleInput("\x1b[D"); // cursor onto the final "o"
+			const onCharacter = stripVTControlCharacters(editor.render(width)[1]!);
+			assert.ok(onCharacter.startsWith("hello"), JSON.stringify(onCharacter));
+			assert.ok(!onCharacter.includes("[38;2"), JSON.stringify(onCharacter));
+		});
+	});
+
 	describe("Grapheme-aware text wrapping", () => {
 		it("wraps lines correctly when text contains wide emojis", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
