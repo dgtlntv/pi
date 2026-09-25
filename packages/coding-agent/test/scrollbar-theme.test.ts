@@ -10,7 +10,7 @@ setThemeJsonValidator(validateThemeJson);
 const tempDirs: string[] = [];
 
 function loadDarkTheme(): { name: string; colors: Record<string, string | number> } {
-	return JSON.parse(readFileSync(new URL("../src/modes/interactive/theme/dark.json", import.meta.url), "utf8")) as {
+	return JSON.parse(readFileSync(new URL("./fixtures/custom-theme.json", import.meta.url), "utf8")) as {
 		name: string;
 		colors: Record<string, string | number>;
 	};

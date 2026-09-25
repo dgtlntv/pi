@@ -1,6 +1,18 @@
 # Customize Pi with themes
 
-Themes control the colors Pi uses in interactive mode and HTML exports. Pi includes `dark` and `light` themes. You can select one theme, follow your terminal's light or dark appearance, or create your own palette.
+Themes control the colors Pi uses in interactive mode and HTML exports. Pi includes three built-in themes. You can select one theme, follow your terminal's light or dark appearance, or create your own palette.
+
+## Built-in themes
+
+Pi generates its built-in themes when it starts. It asks the terminal for its background color and computes every color from a minimum perceptual contrast against that background, so text stays readable on whatever background your terminal uses.
+
+| Theme | Colors |
+|---|---|
+| `dark` | Light colors, generated against your terminal background when it is dark, otherwise against `#282c34`. |
+| `light` | Dark colors, generated against your terminal background when it is light, otherwise against `#f7f6f6`. |
+| `system` | Hues and saturation from your terminal's ANSI palette. Pi picks dark or light by whether white or black text has more contrast on the background. If the terminal does not report its palette, `system` looks like `dark` or `light`. |
+
+Pi regenerates the active built-in theme when the terminal reports an appearance change.
 
 <a id="selecting-a-theme"></a>
 
@@ -37,7 +49,7 @@ See [CLI resources](cli.md#resources) for the command-line option.
 
 ## Create a custom theme
 
-Copy one of the [built-in themes](https://github.com/earendil-works/pi/tree/main/packages/coding-agent/src/modes/interactive/theme) or create a new JSON file conforming to the [schema](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/modes/interactive/theme/theme-schema.json).
+Create a JSON file conforming to the [schema](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/modes/interactive/theme/theme-schema.json), which lists every color role.
 
 1. Save the file as `<agent-dir>/themes/my-theme.json`. The agent directory defaults to `~/.pi/agent`.
 2. Set its `name` to `my-theme`.

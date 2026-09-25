@@ -10,11 +10,18 @@ import {
 	type SettingsListTheme,
 } from "@earendil-works/pi-tui";
 import chalk from "chalk";
-import { getCustomThemesDir, getThemesDir } from "../../../config.ts";
+import { getCustomThemesDir } from "../../../config.ts";
 import type { SourceInfo } from "../../../core/source-info.ts";
 import { closeWatcher, watchWithErrorHandler } from "../../../utils/fs-watch.ts";
 import { highlight, supportsLanguage } from "../../../utils/syntax-highlight.ts";
 import { stripBom } from "../../../utils/text.ts";
+import {
+	FALLBACK_BACKGROUNDS,
+	generatePerceptualColors,
+	type PerceptualMode,
+	perceptualMode,
+	rgbColorToHex,
+} from "./perceptual-theme.ts";
 
 // ============================================================================
 // Types & Schema
@@ -413,19 +420,52 @@ export class Theme {
 // Theme Loading
 // ============================================================================
 
-let BUILTIN_THEMES: Record<string, ThemeJson> | undefined;
+/**
+ * Built-in themes are generated at load time from perceptual contrast minimums against the
+ * terminal's background, so they adapt to it:
+ * - `dark` and `light`: a fixed mode, generated against the terminal background when it has that
+ *   mode, otherwise against a fallback background.
+ * - `system`: the mode that suits the terminal background, with hue and saturation taken from the
+ *   terminal's ANSI palette. Without a palette it matches `dark` or `light`.
+ */
+const GENERATED_THEMES = ["dark", "light", "system"] as const;
+type GeneratedThemeName = (typeof GENERATED_THEMES)[number];
 
-function getBuiltinThemes(): Record<string, ThemeJson> {
-	if (!BUILTIN_THEMES) {
-		const themesDir = getThemesDir();
-		const darkPath = path.join(themesDir, "dark.json");
-		const lightPath = path.join(themesDir, "light.json");
-		BUILTIN_THEMES = {
-			dark: JSON.parse(stripBom(fs.readFileSync(darkPath, "utf-8"))) as ThemeJson,
-			light: JSON.parse(stripBom(fs.readFileSync(lightPath, "utf-8"))) as ThemeJson,
-		};
-	}
-	return BUILTIN_THEMES;
+export function isGeneratedThemeName(name: string): name is GeneratedThemeName {
+	return (GENERATED_THEMES as readonly string[]).includes(name);
+}
+
+/** What the terminal reported about its colors; undefined where a query failed or has not run. */
+let terminalColors: { background?: string; palette?: string[] } = {};
+
+/**
+ * Set the terminal's background and ANSI palette for generated themes. Re-apply the active theme
+ * afterwards for it to take effect.
+ */
+export function setTerminalColors(colors: { background?: RgbColor; palette?: RgbColor[] }): void {
+	terminalColors = {
+		background: colors.background ? rgbColorToHex(colors.background) : undefined,
+		palette: colors.palette?.map(rgbColorToHex),
+	};
+}
+
+/** The mode a generated theme renders in, given the current terminal colors. */
+function generatedThemeMode(name: GeneratedThemeName): PerceptualMode {
+	if (name !== "system") return name;
+	return terminalColors.background
+		? perceptualMode(terminalColors.background)
+		: detectTerminalBackgroundFromEnv().theme;
+}
+
+function generatedThemeJson(name: GeneratedThemeName): ThemeJson {
+	const mode = generatedThemeMode(name);
+	const { background, palette } = terminalColors;
+	const colors = generatePerceptualColors({
+		background: background && perceptualMode(background) === mode ? background : FALLBACK_BACKGROUNDS[mode],
+		mode,
+		palette: name === "system" ? palette : undefined,
+	});
+	return { name, colors } as ThemeJson;
 }
 
 export function getAvailableThemes(): string[] {
@@ -438,7 +478,6 @@ export interface ThemeInfo {
 }
 
 export function getAvailableThemesWithPaths(): ThemeInfo[] {
-	const themesDir = getThemesDir();
 	const result: ThemeInfo[] = [];
 	const seen = new Set<string>();
 	const addTheme = (themeInfo: ThemeInfo) => {
@@ -450,8 +489,8 @@ export function getAvailableThemesWithPaths(): ThemeInfo[] {
 	};
 
 	// Built-in themes
-	for (const name of Object.keys(getBuiltinThemes())) {
-		addTheme({ name, path: path.join(themesDir, `${name}.json`) });
+	for (const name of GENERATED_THEMES) {
+		addTheme({ name, path: undefined });
 	}
 
 	// Custom themes
@@ -518,9 +557,8 @@ function parseThemeJsonContent(label: string, content: string): ThemeJson {
 }
 
 function loadThemeJson(name: string): ThemeJson {
-	const builtinThemes = getBuiltinThemes();
-	if (name in builtinThemes) {
-		return builtinThemes[name];
+	if (isGeneratedThemeName(name)) {
+		return generatedThemeJson(name);
 	}
 	const registeredTheme = registeredThemes.get(name);
 	if (registeredTheme?.sourcePath) {
@@ -661,20 +699,9 @@ function getColorFgBgBackgroundIndex(colorfgbg: string): number | undefined {
 	return undefined;
 }
 
-function getRgbColorLuminance({ r, g, b }: RgbColor): number {
-	const toLinear = (channel: number) => {
-		const value = channel / 255;
-		return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-	};
-	return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
-}
-
-function getAnsiColorLuminance(index: number): number {
-	return getRgbColorLuminance(hexToRgb(ansi256ToHex(index)));
-}
-
+/** Dark when white text has more perceptual contrast on the color than black text. */
 export function getThemeForRgbColor(rgb: RgbColor): TerminalTheme {
-	return getRgbColorLuminance(rgb) >= 0.5 ? "light" : "dark";
+	return perceptualMode(rgbColorToHex(rgb));
 }
 
 export function detectTerminalBackgroundFromEnv(options: TerminalThemeDetectionOptions = {}): TerminalThemeDetection {
@@ -683,7 +710,7 @@ export function detectTerminalBackgroundFromEnv(options: TerminalThemeDetectionO
 	const bg = getColorFgBgBackgroundIndex(colorfgbg);
 	if (bg !== undefined) {
 		return {
-			theme: getAnsiColorLuminance(bg) >= 0.5 ? "light" : "dark",
+			theme: perceptualMode(ansi256ToHex(bg)),
 			source: "COLORFGBG",
 			detail: `background color index ${bg}`,
 			confidence: "high",
@@ -841,7 +868,7 @@ function startThemeWatcher(): void {
 	stopThemeWatcher();
 
 	// Only watch if it's a custom theme (not built-in)
-	if (!currentThemeName || currentThemeName === "dark" || currentThemeName === "light") {
+	if (!currentThemeName || isGeneratedThemeName(currentThemeName)) {
 		return;
 	}
 
@@ -1000,8 +1027,7 @@ export function getResolvedThemeColors(themeName?: string): Record<string, strin
  * Check if a theme is a "light" theme (for CSS that needs light/dark variants).
  */
 export function isLightTheme(themeName?: string): boolean {
-	// Currently just check the name - could be extended to analyze colors
-	return themeName === "light";
+	return themeName !== undefined && isGeneratedThemeName(themeName) && generatedThemeMode(themeName) === "light";
 }
 
 /**

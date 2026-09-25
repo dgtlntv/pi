@@ -1,11 +1,18 @@
 import type { TUI } from "@earendil-works/pi-tui";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SettingsManager } from "../src/core/settings-manager.ts";
-import { initTheme, type TerminalTheme, theme } from "../src/modes/interactive/theme/theme.ts";
+import {
+	getResolvedThemeColors,
+	initTheme,
+	setTerminalColors,
+	type TerminalTheme,
+	theme,
+} from "../src/modes/interactive/theme/theme.ts";
 import { InteractiveThemeController } from "../src/modes/interactive/theme/theme-controller.ts";
 
 function createUi() {
 	const queryTerminalBackgroundColor = vi.fn();
+	const queryTerminalPalette = vi.fn();
 	const queryTerminalColorScheme = vi.fn();
 	const setTerminalColorSchemeNotifications = vi.fn();
 	let terminalColorSchemeListener: ((terminalTheme: TerminalTheme) => void) | undefined;
@@ -19,11 +26,13 @@ function createUi() {
 			return unsubscribeTerminalColorScheme;
 		}),
 		queryTerminalBackgroundColor,
+		queryTerminalPalette,
 		queryTerminalColorScheme,
 	} as unknown as TUI;
 	return {
 		ui,
 		queryTerminalBackgroundColor,
+		queryTerminalPalette,
 		queryTerminalColorScheme,
 		setTerminalColorSchemeNotifications,
 		unsubscribeTerminalColorScheme,
@@ -41,13 +50,14 @@ function createController(ui: TUI, getSettingsManager: () => SettingsManager, in
 }
 
 afterEach(() => {
+	setTerminalColors({});
 	initTheme("dark");
 	vi.unstubAllEnvs();
 });
 
 describe("InteractiveThemeController", () => {
 	it("uses the initial theme without persisting it", async () => {
-		const { ui, queryTerminalBackgroundColor } = createUi();
+		const { ui, queryTerminalColorScheme } = createUi();
 		const manager = SettingsManager.inMemory({ theme: "dark" });
 		const setTheme = vi.spyOn(manager, "setTheme");
 		const flush = vi.spyOn(manager, "flush");
@@ -57,7 +67,7 @@ describe("InteractiveThemeController", () => {
 		expect(controller.getThemeSelection()).toBe("light");
 		await controller.applyFromSettings();
 
-		expect(queryTerminalBackgroundColor).not.toHaveBeenCalled();
+		expect(queryTerminalColorScheme).not.toHaveBeenCalled();
 		expect(setTheme).not.toHaveBeenCalled();
 		expect(flush).not.toHaveBeenCalled();
 	});
@@ -137,5 +147,36 @@ describe("InteractiveThemeController", () => {
 		manager = secondManager;
 		await controller.applyFromSettings();
 		expect(theme.name).toBe("dark");
+	});
+
+	it("generates the system theme from the terminal's background and palette", async () => {
+		const { ui, queryTerminalBackgroundColor, queryTerminalPalette, setTerminalColorSchemeNotifications } =
+			createUi();
+		queryTerminalBackgroundColor.mockResolvedValue({ r: 0xf7, g: 0xf6, b: 0xf6 });
+		queryTerminalPalette.mockResolvedValue(
+			Array.from({ length: 16 }, (_, index) =>
+				index === 1 ? { r: 0xcc, g: 0x66, b: 0x66 } : { r: 0x66, g: 0x66, b: 0x66 },
+			),
+		);
+		const manager = SettingsManager.inMemory({ theme: "system" });
+		const controller = createController(ui, () => manager);
+		await controller.applyFromSettings();
+
+		expect(theme.name).toBe("system");
+		expect(queryTerminalPalette).toHaveBeenCalledOnce();
+		expect(setTerminalColorSchemeNotifications).toHaveBeenCalledWith(true);
+		// Light background: dark text. Gray palette slots give gray neutrals.
+		expect(getResolvedThemeColors("system").text).toMatch(/^#([0-9a-f]{2})\1\1$/);
+		expect(getResolvedThemeColors("system")).not.toEqual(getResolvedThemeColors("light"));
+	});
+
+	it("does not query the terminal for custom themes", async () => {
+		const { ui, queryTerminalBackgroundColor, queryTerminalPalette } = createUi();
+		const manager = SettingsManager.inMemory({ theme: "custom-missing" });
+		const controller = createController(ui, () => manager);
+		await controller.applyFromSettings();
+
+		expect(queryTerminalBackgroundColor).not.toHaveBeenCalled();
+		expect(queryTerminalPalette).not.toHaveBeenCalled();
 	});
 });

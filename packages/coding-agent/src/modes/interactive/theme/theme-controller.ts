@@ -5,8 +5,10 @@ import {
 	detectTerminalBackgroundTheme,
 	detectTerminalThemeForAuto,
 	initTheme,
+	isGeneratedThemeName,
 	parseAutoThemeSetting,
 	resolveThemeSetting,
+	setTerminalColors,
 	setTheme,
 	setThemeInstance,
 	type TerminalTheme,
@@ -14,6 +16,9 @@ import {
 } from "./theme.ts";
 
 type ThemeResult = { success: boolean; error?: string };
+
+/** How long to wait for the terminal to report its colors. */
+const QUERY_TIMEOUT_MS = 100;
 
 export class InteractiveThemeController {
 	private readonly ui: TUI;
@@ -59,19 +64,28 @@ export class InteractiveThemeController {
 		const themeSetting = this.currentThemeSetting ?? settingsManager.getThemeSetting();
 		const autoTheme = parseAutoThemeSetting(themeSetting);
 		if (autoTheme) {
-			this.terminalTheme = await detectTerminalThemeForAuto({ ui: this.ui, timeoutMs: 100 });
+			[this.terminalTheme] = await Promise.all([
+				detectTerminalThemeForAuto({ ui: this.ui, timeoutMs: QUERY_TIMEOUT_MS }),
+				this.refreshTerminalColors([autoTheme.lightTheme, autoTheme.darkTheme]),
+			]);
 			this.setAutoSync(true);
 			this.applyThemeName(this.terminalTheme === "light" ? autoTheme.lightTheme : autoTheme.darkTheme, true);
 			return;
 		}
 
-		this.setAutoSync(false);
 		if (themeSetting !== undefined) {
+			await this.refreshTerminalColors([themeSetting]);
+			this.setAutoSync(isGeneratedThemeName(themeSetting));
 			this.applyThemeName(themeSetting, true);
 			return;
 		}
 
-		const detection = await detectTerminalBackgroundTheme({ ui: this.ui, timeoutMs: 100 });
+		// No setting: detect dark or light; both are generated themes.
+		const [detection] = await Promise.all([
+			detectTerminalBackgroundTheme({ ui: this.ui, timeoutMs: QUERY_TIMEOUT_MS }),
+			this.refreshTerminalColors(["dark", "light"]),
+		]);
+		this.setAutoSync(true);
 		this.terminalTheme = detection.theme;
 		if (!this.applyThemeName(detection.theme).success) return;
 		if (detection.confidence === "high") {
@@ -85,7 +99,7 @@ export class InteractiveThemeController {
 	}
 
 	setThemeName(themeName: string, showError = false): ThemeResult {
-		this.setAutoSync(false);
+		this.setAutoSync(isGeneratedThemeName(themeName));
 		const result = this.applyThemeName(themeName, showError);
 		if (result.success) {
 			this.currentThemeSetting = themeName;
@@ -139,6 +153,27 @@ export class InteractiveThemeController {
 		return result;
 	}
 
+	/**
+	 * Query the terminal's background and ANSI palette when a generated theme is involved, so it
+	 * renders against the actual terminal colors. Queries that fail leave the colors unknown, and
+	 * generated themes fall back to their default backgrounds and hues.
+	 */
+	private async refreshTerminalColors(themeNames: string[]): Promise<void> {
+		if (!themeNames.some(isGeneratedThemeName)) return;
+		const query = async <T>(run: () => Promise<T>): Promise<T | undefined> => {
+			try {
+				return await run();
+			} catch {
+				return undefined;
+			}
+		};
+		const [background, palette] = await Promise.all([
+			query(() => this.ui.queryTerminalBackgroundColor({ timeoutMs: QUERY_TIMEOUT_MS })),
+			query(() => this.ui.queryTerminalPalette({ timeoutMs: QUERY_TIMEOUT_MS })),
+		]);
+		setTerminalColors({ background, palette });
+	}
+
 	private notifyChanged(): void {
 		this.ui.invalidate();
 		this.onChanged();
@@ -156,17 +191,26 @@ export class InteractiveThemeController {
 		);
 	}
 
+	/**
+	 * The terminal reported an appearance change. Theme pairs switch themes; generated themes are
+	 * regenerated against the terminal's new colors.
+	 */
 	private applyTerminalTheme(terminalTheme: TerminalTheme): void {
 		if (!this.autoSyncEnabled) return;
 		this.terminalTheme = terminalTheme;
 		const autoTheme = parseAutoThemeSetting(this.currentThemeSetting ?? this.getSettingsManager().getThemeSetting());
-		if (!autoTheme) {
-			this.setAutoSync(false);
-			return;
-		}
-		const themeName = terminalTheme === "light" ? autoTheme.lightTheme : autoTheme.darkTheme;
+		const themeName = autoTheme
+			? terminalTheme === "light"
+				? autoTheme.lightTheme
+				: autoTheme.darkTheme
+			: this.activeThemeName;
+		if (!themeName) return;
 		if (themeName !== this.activeThemeName) {
 			this.applyThemeName(themeName);
 		}
+		if (!isGeneratedThemeName(themeName)) return;
+		void this.refreshTerminalColors([themeName]).then(() => {
+			if (this.autoSyncEnabled && this.activeThemeName === themeName) this.applyThemeName(themeName);
+		});
 	}
 }
