@@ -249,6 +249,12 @@ function bellWeight(lightness: number): number {
 	return (gaussian(lightness) - gaussian(0)) / (1 - gaussian(0));
 }
 
+/** A family's saturation curve relative to its maximum: 1 at mid lightness, `min / max` at black and white. */
+function saturationCurve({ saturation: { min, max } }: ColorFamily, lightness: number): number {
+	const floor = max > 0 ? min / max : 1;
+	return floor + (1 - floor) * bellWeight(lightness);
+}
+
 /** Order tokens so each comes after the backgrounds it is measured on. */
 function solveOrder(): string[] {
 	const dependencies = new Map<string, Set<string>>();
@@ -290,7 +296,7 @@ function relax(minimum: number, t: number): number {
  * @returns Hex colors by token, or undefined if a minimum is unreachable.
  */
 function solve(
-	familyOf: (token: string) => ColorFamily,
+	colorOf: (token: string, lightness: number) => string,
 	mode: PerceptualMode,
 	background: string,
 	t: number,
@@ -305,13 +311,7 @@ function solve(
 		});
 		const target = lighter ? Math.max(...targets) : Math.min(...targets);
 		if (targets.some(Number.isNaN) || target < 0 || target > 1) return undefined;
-		const { hue, saturation } = familyOf(token);
-		const lightness = grayLightness(target);
-		colors[token] = okhslToHex(
-			hue,
-			saturation.min + (saturation.max - saturation.min) * bellWeight(lightness),
-			lightness,
-		);
+		colors[token] = colorOf(token, grayLightness(target));
 	}
 	return colors;
 }
@@ -321,7 +321,12 @@ export interface PerceptualThemeOptions {
 	background: string;
 	/** Dark themes solve lighter colors, light themes darker ones. */
 	mode: PerceptualMode;
-	/** The terminal's 16 ANSI colors, `#rrggbb`. When given, hue and saturation come from it. */
+	/**
+	 * The terminal's 16 ANSI colors, `#rrggbb`. When given, each token takes its hue from its palette
+	 * slot. Its saturation is the palette color's at the palette color's own lightness, and falls off
+	 * toward black and white along the built-in family's saturation curve, never rising above the
+	 * palette's. Text stays faithful to the palette; panels near the background stay calm.
+	 */
 	palette?: string[];
 }
 
@@ -335,21 +340,27 @@ export function generatePerceptualColors({
 	mode,
 	palette,
 }: PerceptualThemeOptions): Record<string, string> {
-	const paletteFamilies = palette?.map((hex): ColorFamily => {
-		const { hue, saturation } = hexToOkhsl(hex);
-		return { hue, saturation: { min: saturation, max: saturation } };
-	});
-	const familyOf = (token: string): ColorFamily =>
-		paletteFamilies ? paletteFamilies[paletteSlot(token)] : FAMILIES[TOKEN_FAMILIES[token]];
+	const sources = palette?.map(hexToOkhsl);
+	const colorOf = (token: string, lightness: number): string => {
+		const family = FAMILIES[TOKEN_FAMILIES[token]];
+		if (!sources) {
+			const { min, max } = family.saturation;
+			return okhslToHex(family.hue, min + (max - min) * bellWeight(lightness), lightness);
+		}
+		const source = sources[paletteSlot(token)];
+		const anchor = saturationCurve(family, source.lightness);
+		const falloff = anchor > 0 ? Math.min(1, saturationCurve(family, lightness) / anchor) : 1;
+		return okhslToHex(source.hue, source.saturation * falloff, lightness);
+	};
 
-	let colors = solve(familyOf, mode, background, 0);
+	let colors = solve(colorOf, mode, background, 0);
 	if (!colors) {
 		// Feasibility only improves as t grows: bisect for the smallest workable t.
 		let [low, high] = [0, MAX_RELAXATION];
-		colors = solve(familyOf, mode, background, high);
+		colors = solve(colorOf, mode, background, high);
 		for (let i = 0; i < 20; i++) {
 			const middle = (low + high) / 2;
-			const attempt = solve(familyOf, mode, background, middle);
+			const attempt = solve(colorOf, mode, background, middle);
 			if (attempt) [high, colors] = [middle, attempt];
 			else low = middle;
 		}

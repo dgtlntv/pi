@@ -118,9 +118,36 @@ describe("system theme", () => {
 			const expected = hexToOkhsl(GHOSTTY_PALETTE[paletteSlot(token)]).hue;
 			expect(hueDistance(hexToOkhsl(colors[token]).hue, expected), token).toBeLessThan(8);
 		}
+		// Panels near the background keep the palette's hue but calm its saturation.
+		expect(hexToOkhsl(colors.toolSuccessBg).saturation).toBeLessThan(hexToOkhsl(GHOSTTY_PALETTE[2]).saturation);
 		// Bright black is gray, so neutral text is gray.
 		const { r, g, b } = toRgb(colors.text);
 		expect(r === g && g === b).toBe(true);
+	});
+
+	it("calms saturated panels near a light background while keeping text faithful", () => {
+		// Catppuccin Latte: very saturated, mid-lightness palette colors on a near-white background.
+		const latte = [
+			"#5c5f77",
+			"#d20f39",
+			"#40a02b",
+			"#df8e1d",
+			"#1e66f5",
+			"#ea76cb",
+			"#179299",
+			"#acb0be",
+			"#6c6f85",
+			"#de293e",
+			"#49af3d",
+			"#eea02d",
+			"#456eff",
+			"#fe85d8",
+			"#2d9fa8",
+			"#bcc0cc",
+		];
+		const colors = generatePerceptualColors({ background: "#eff1f5", mode: "light", palette: latte });
+		expect(hexToOkhsl(colors.toolSuccessBg).saturation).toBeLessThan(0.4);
+		expect(hexToOkhsl(colors.success).saturation).toBeGreaterThan(0.9);
 	});
 
 	it("maps families without an ANSI slot onto existing slots", () => {
