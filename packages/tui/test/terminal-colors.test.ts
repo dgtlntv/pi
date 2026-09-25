@@ -311,3 +311,24 @@ describe("TUI.queryTerminalPalette", () => {
 		}
 	});
 });
+
+describe("TUI.queryTerminalForegroundColor", () => {
+	it("writes an OSC 10 query and resolves with the foreground, independent of background queries", async () => {
+		const terminal = new TestTerminal();
+		const tui: TUI = new TuiMainScreen(terminal);
+		tui.start();
+		try {
+			const background = tui.queryTerminalBackgroundColor({ timeoutMs: 1000 });
+			const foreground = tui.queryTerminalForegroundColor({ timeoutMs: 1000 });
+			assert.ok(terminal.writes.includes("\x1b]10;?\x07"));
+
+			terminal.sendInput("\x1b]10;rgb:ffff/ffff/ffff\x1b\\");
+			terminal.sendInput("\x1b]11;rgb:2828/2c2c/3434\x1b\\");
+
+			assert.deepStrictEqual(await foreground, { r: 255, g: 255, b: 255 });
+			assert.deepStrictEqual(await background, { r: 40, g: 44, b: 52 });
+		} finally {
+			tui.stop();
+		}
+	});
+});

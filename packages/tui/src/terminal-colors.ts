@@ -26,6 +26,7 @@ function parseOscHexChannel(channel: string): number | undefined {
 }
 
 const OSC11_BACKGROUND_COLOR_RESPONSE_PATTERN = /^\x1b\]11;([^\x07\x1b]*)(?:\x07|\x1b\\)$/i;
+const OSC_DEFAULT_COLOR_RESPONSE_PATTERN = /^\x1b\](10|11);([^\x07\x1b]*)(?:\x07|\x1b\\)$/i;
 const OSC4_PALETTE_COLOR_RESPONSE_PATTERN = /^\x1b\]4;(\d{1,3});([^\x07\x1b]*)(?:\x07|\x1b\\)$/i;
 const COLOR_SCHEME_REPORT_PATTERN = /^(?:\x1b\[\?997;(1|2)n)+$/;
 
@@ -39,6 +40,22 @@ export function parseOsc11BackgroundColor(data: string): RgbColor | undefined {
 		return undefined;
 	}
 	return parseOscColor(match[1]);
+}
+
+/** Which default color an OSC reply reports: 10 is the foreground, 11 the background. */
+export type OscDefaultColor = 10 | 11;
+
+/**
+ * Parse an OSC 10 (foreground) or OSC 11 (background) reply.
+ * @returns The reported color and its code, or undefined if `data` is not such a reply.
+ * The color is undefined when the reply cannot be parsed.
+ */
+export function parseOscDefaultColor(data: string): { code: OscDefaultColor; rgb: RgbColor | undefined } | undefined {
+	const match = data.match(OSC_DEFAULT_COLOR_RESPONSE_PATTERN);
+	if (!match) {
+		return undefined;
+	}
+	return { code: Number(match[1]) as OscDefaultColor, rgb: parseOscColor(match[2]) };
 }
 
 /** Parse an OSC 4 palette reply (`ESC ] 4 ; index ; color ST`). */
