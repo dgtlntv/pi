@@ -136,77 +136,66 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
 	return { r, g, b };
 }
 
-// The 6x6x6 color cube channel values (indices 0-5)
-const CUBE_VALUES = [0, 95, 135, 175, 215, 255];
+// sRGB to Oklab, with Color.js's matrices (srgb-linear toXYZ, then oklab XYZtoLMS and LMStoLab).
+const LINEAR_SRGB_TO_XYZ = [
+	[0.41239079926595934, 0.357584339383878, 0.1804807884018343],
+	[0.21263900587151027, 0.715168678767756, 0.07219231536073371],
+	[0.01933081871559182, 0.11919477979462598, 0.9505321522496607],
+];
+const XYZ_TO_LMS = [
+	[0.819022437996703, 0.3619062600528904, -0.1288737815209879],
+	[0.0329836539323885, 0.9292868615863434, 0.0361446663506424],
+	[0.0481771893596242, 0.2642395317527308, 0.6335478284694309],
+];
+const LMS_TO_OKLAB = [
+	[0.210454268309314, 0.7936177747023054, -0.0040720430116193],
+	[1.9779985324311684, -2.42859224204858, 0.450593709617411],
+	[0.0259040424655478, 0.7827717124575296, -0.8086757549230774],
+];
 
-// Grayscale ramp values (indices 232-255, 24 grays from 8 to 238)
-const GRAY_VALUES = Array.from({ length: 24 }, (_, i) => 8 + i * 10);
+type Vector3 = [number, number, number];
 
-function findClosestCubeIndex(value: number): number {
-	let minDist = Infinity;
-	let minIdx = 0;
-	for (let i = 0; i < CUBE_VALUES.length; i++) {
-		const dist = Math.abs(value - CUBE_VALUES[i]);
-		if (dist < minDist) {
-			minDist = dist;
-			minIdx = i;
-		}
-	}
-	return minIdx;
+function multiplyMatrix(matrix: number[][], [x, y, z]: Vector3): Vector3 {
+	return matrix.map((row) => row[0] * x + row[1] * y + row[2] * z) as Vector3;
 }
 
-function findClosestGrayIndex(gray: number): number {
-	let minDist = Infinity;
-	let minIdx = 0;
-	for (let i = 0; i < GRAY_VALUES.length; i++) {
-		const dist = Math.abs(gray - GRAY_VALUES[i]);
-		if (dist < minDist) {
-			minDist = dist;
-			minIdx = i;
-		}
-	}
-	return minIdx;
+function rgbToOklab(r: number, g: number, b: number): Vector3 {
+	const linear = [r, g, b].map((channel) => {
+		const value = channel / 255;
+		return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+	}) as Vector3;
+	const lms = multiplyMatrix(XYZ_TO_LMS, multiplyMatrix(LINEAR_SRGB_TO_XYZ, linear)).map(Math.cbrt) as Vector3;
+	return multiplyMatrix(LMS_TO_OKLAB, lms);
 }
 
-function colorDistance(r1: number, g1: number, b1: number, r2: number, g2: number, b2: number): number {
-	// Weighted Euclidean distance (human eye is more sensitive to green)
-	const dr = r1 - r2;
-	const dg = g1 - g2;
-	const db = b1 - b2;
-	return dr * dr * 0.299 + dg * dg * 0.587 + db * db * 0.114;
-}
+/**
+ * Oklab coordinates of xterm colors 16-255 (the 6x6x6 cube and the grayscale ramp). Colors
+ * 0-15 are left out: each terminal defines them itself.
+ */
+let xtermOklab: Array<{ index: number; oklab: Vector3 }> | undefined;
 
+/**
+ * Map a 24-bit color to the perceptually closest xterm 256-color index: the candidate with the
+ * smallest DeltaEOK (Euclidean distance in Oklab).
+ */
 function rgbTo256(r: number, g: number, b: number): number {
-	// Find closest color in the 6x6x6 cube
-	const rIdx = findClosestCubeIndex(r);
-	const gIdx = findClosestCubeIndex(g);
-	const bIdx = findClosestCubeIndex(b);
-	const cubeR = CUBE_VALUES[rIdx];
-	const cubeG = CUBE_VALUES[gIdx];
-	const cubeB = CUBE_VALUES[bIdx];
-	const cubeIndex = 16 + 36 * rIdx + 6 * gIdx + bIdx;
-	const cubeDist = colorDistance(r, g, b, cubeR, cubeG, cubeB);
-
-	// Find closest grayscale
-	const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-	const grayIdx = findClosestGrayIndex(gray);
-	const grayValue = GRAY_VALUES[grayIdx];
-	const grayIndex = 232 + grayIdx;
-	const grayDist = colorDistance(r, g, b, grayValue, grayValue, grayValue);
-
-	// Check if color has noticeable saturation (hue matters)
-	// If max-min spread is significant, prefer cube to preserve tint
-	const maxC = Math.max(r, g, b);
-	const minC = Math.min(r, g, b);
-	const spread = maxC - minC;
-
-	// Only consider grayscale if color is nearly neutral (spread < 10)
-	// AND grayscale is actually closer
-	if (spread < 10 && grayDist < cubeDist) {
-		return grayIndex;
+	xtermOklab ??= Array.from({ length: 240 }, (_, offset) => {
+		const index = offset + 16;
+		const rgb = hexToRgb(ansi256ToHex(index));
+		return { index, oklab: rgbToOklab(rgb.r, rgb.g, rgb.b) };
+	});
+	const [L, A, B] = rgbToOklab(r, g, b);
+	let closest = 16;
+	let closestDistance = Number.POSITIVE_INFINITY;
+	for (const { index, oklab } of xtermOklab) {
+		// Squared DeltaEOK: same ordering, no square root.
+		const distance = (L - oklab[0]) ** 2 + (A - oklab[1]) ** 2 + (B - oklab[2]) ** 2;
+		if (distance < closestDistance) {
+			closest = index;
+			closestDistance = distance;
+		}
 	}
-
-	return cubeIndex;
+	return closest;
 }
 
 function hexTo256(hex: string): number {
