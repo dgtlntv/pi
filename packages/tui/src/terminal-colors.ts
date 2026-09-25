@@ -26,6 +26,7 @@ function parseOscHexChannel(channel: string): number | undefined {
 }
 
 const OSC11_BACKGROUND_COLOR_RESPONSE_PATTERN = /^\x1b\]11;([^\x07\x1b]*)(?:\x07|\x1b\\)$/i;
+const OSC4_PALETTE_COLOR_RESPONSE_PATTERN = /^\x1b\]4;(\d{1,3});([^\x07\x1b]*)(?:\x07|\x1b\\)$/i;
 const COLOR_SCHEME_REPORT_PATTERN = /^(?:\x1b\[\?997;(1|2)n)+$/;
 
 export function isOsc11BackgroundColorResponse(data: string): boolean {
@@ -37,8 +38,22 @@ export function parseOsc11BackgroundColor(data: string): RgbColor | undefined {
 	if (!match) {
 		return undefined;
 	}
+	return parseOscColor(match[1]);
+}
 
-	const value = match[1].trim();
+/** Parse an OSC 4 palette reply (`ESC ] 4 ; index ; color ST`). */
+export function parseOsc4PaletteColor(data: string): { index: number; rgb: RgbColor } | undefined {
+	const match = data.match(OSC4_PALETTE_COLOR_RESPONSE_PATTERN);
+	if (!match) {
+		return undefined;
+	}
+	const rgb = parseOscColor(match[2]);
+	return rgb ? { index: Number(match[1]), rgb } : undefined;
+}
+
+/** Parse an OSC color value: `rgb:rr/gg/bb` (1-4 hex digits per channel), `#rrggbb`, or `#rrrrggggbbbb`. */
+function parseOscColor(color: string): RgbColor | undefined {
+	const value = color.trim();
 	if (value.startsWith("#")) {
 		const hex = value.slice(1);
 		if (/^[0-9a-f]{6}$/i.test(hex)) {

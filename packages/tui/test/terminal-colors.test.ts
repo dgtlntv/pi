@@ -2,6 +2,7 @@ import assert from "node:assert";
 import { describe, it } from "node:test";
 import {
 	type Component,
+	parseOsc4PaletteColor,
 	parseOsc11BackgroundColor,
 	parseTerminalColorSchemeReport,
 	type Terminal,
@@ -244,6 +245,66 @@ describe("TUI.queryTerminalBackgroundColor", () => {
 			terminal.sendInput("\x1b]11;#ffffff\x07");
 
 			assert.deepStrictEqual(listenerInputs, []);
+			assert.deepStrictEqual(component.inputs, []);
+		} finally {
+			tui.stop();
+		}
+	});
+});
+
+describe("parseOsc4PaletteColor", () => {
+	it("parses the index and rgb color of a palette reply", () => {
+		assert.deepStrictEqual(parseOsc4PaletteColor("\x1b]4;1;rgb:cccc/6666/6666\x1b\\"), {
+			index: 1,
+			rgb: { r: 204, g: 102, b: 102 },
+		});
+		assert.deepStrictEqual(parseOsc4PaletteColor("\x1b]4;12;#7aa6da\x07"), {
+			index: 12,
+			rgb: { r: 122, g: 166, b: 218 },
+		});
+		assert.strictEqual(parseOsc4PaletteColor("\x1b]11;#ffffff\x07"), undefined);
+		assert.strictEqual(parseOsc4PaletteColor("\x1b]4;1;?\x07"), undefined);
+	});
+});
+
+describe("TUI.queryTerminalPalette", () => {
+	const reply = (index: number) => `\x1b]4;${index};rgb:${index.toString(16).padStart(2, "0")}/00/00\x07`;
+
+	it("writes OSC 4 queries for colors 0-15 and resolves once every reply arrives", async () => {
+		const terminal = new TestTerminal();
+		const tui: TUI = new TuiMainScreen(terminal);
+		tui.start();
+		try {
+			const query = tui.queryTerminalPalette({ timeoutMs: 1000 });
+			assert.ok(
+				terminal.writes.some((write) => write.includes("\x1b]4;0;?\x07") && write.includes("\x1b]4;15;?\x07")),
+			);
+
+			for (let index = 15; index >= 0; index--) terminal.sendInput(reply(index));
+
+			const palette = await query;
+			assert.strictEqual(palette?.length, 16);
+			assert.deepStrictEqual(palette?.[9], { r: 9, g: 0, b: 0 });
+		} finally {
+			tui.stop();
+		}
+	});
+
+	it("resolves undefined when replies are missing, and still consumes late replies", async () => {
+		const terminal = new TestTerminal();
+		const tui: TUI = new TuiMainScreen(terminal);
+		const component = new InputRecorder();
+		tui.addChild(component);
+		tui.setFocus(component);
+		tui.start();
+		try {
+			const query = tui.queryTerminalPalette({ timeoutMs: 1 });
+			terminal.sendInput(reply(0));
+			await wait(5);
+
+			assert.strictEqual(await query, undefined);
+
+			terminal.sendInput(reply(1));
 			assert.deepStrictEqual(component.inputs, []);
 		} finally {
 			tui.stop();

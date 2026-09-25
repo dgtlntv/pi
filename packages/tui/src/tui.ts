@@ -7,6 +7,7 @@ import { isKeyRelease, matchesKey } from "./keys.ts";
 import type { Terminal } from "./terminal.ts";
 import {
 	isOsc11BackgroundColorResponse,
+	parseOsc4PaletteColor,
 	parseOsc11BackgroundColor,
 	parseTerminalColorSchemeReport,
 	type RgbColor,
@@ -137,6 +138,12 @@ export interface Component {
 
 export type TuiInputListenerResult = { consume?: boolean; data?: string } | undefined;
 export type TuiInputListener = (data: string) => TuiInputListenerResult;
+type PendingOsc4PaletteQuery = {
+	colors: Array<RgbColor | undefined>;
+	remaining: number;
+	resolve: ((palette: RgbColor[] | undefined) => void) | undefined;
+	timer: NodeJS.Timeout | undefined;
+};
 type PendingOsc11BackgroundQuery = {
 	settled: boolean;
 	resolve: ((rgb: RgbColor | undefined) => void) | undefined;
@@ -448,6 +455,7 @@ export interface TUI extends Component {
 	onTerminalColorSchemeChange(listener: (scheme: TerminalColorScheme) => void): () => void;
 	setTerminalColorSchemeNotifications(enabled: boolean): void;
 	queryTerminalBackgroundColor(options: { timeoutMs: number }): Promise<RgbColor | undefined>;
+	queryTerminalPalette(options: { timeoutMs: number }): Promise<RgbColor[] | undefined>;
 	queryTerminalColorScheme(options: { timeoutMs: number }): Promise<TerminalColorScheme | undefined>;
 }
 
@@ -481,6 +489,9 @@ export abstract class TuiBase extends Container implements TUI {
 	protected stopped = false;
 	private pendingOsc11BackgroundReplies = 0;
 	private pendingOsc11BackgroundQueries: PendingOsc11BackgroundQuery[] = [];
+	/** OSC 4 replies still expected, including late ones after a timed-out query, so they never reach input. */
+	private pendingOsc4PaletteReplies = 0;
+	private pendingOsc4PaletteQuery: PendingOsc4PaletteQuery | undefined;
 	private terminalColorSchemeListeners = new Set<(scheme: TerminalColorScheme) => void>();
 	private terminalColorSchemeNotificationsEnabled = false;
 	/** Directory for debug/crash logs. When undefined, debug logging is disabled and crash dumps fall back to the OS temp directory. */
@@ -1007,6 +1018,9 @@ export abstract class TuiBase extends Container implements TUI {
 		if (this.consumeOsc11BackgroundResponse(data)) {
 			return;
 		}
+		if (this.consumeOsc4PaletteResponse(data)) {
+			return;
+		}
 		if (this.consumeTerminalColorSchemeReport(data)) {
 			return;
 		}
@@ -1101,6 +1115,29 @@ export abstract class TuiBase extends Container implements TUI {
 			}
 			query.resolve?.(rgb);
 			query.resolve = undefined;
+		}
+		return true;
+	}
+
+	private consumeOsc4PaletteResponse(data: string): boolean {
+		if (this.pendingOsc4PaletteReplies <= 0) {
+			return false;
+		}
+		const reply = parseOsc4PaletteColor(data);
+		if (!reply) {
+			return false;
+		}
+		this.pendingOsc4PaletteReplies -= 1;
+		const query = this.pendingOsc4PaletteQuery;
+		if (query?.resolve && reply.index < query.colors.length && query.colors[reply.index] === undefined) {
+			query.colors[reply.index] = reply.rgb;
+			query.remaining -= 1;
+			if (query.remaining === 0) {
+				clearTimeout(query.timer);
+				query.resolve(query.colors as RgbColor[]);
+				query.resolve = undefined;
+				this.pendingOsc4PaletteQuery = undefined;
+			}
 		}
 		return true;
 	}
@@ -1424,6 +1461,32 @@ export abstract class TuiBase extends Container implements TUI {
 			this.pendingOsc11BackgroundQueries.push(query);
 			this.pendingOsc11BackgroundReplies += 1;
 			this.terminal.write("\x1b]11;?\x07");
+		});
+	}
+
+	/**
+	 * Query the terminal's 16 ANSI palette colors with OSC 4 (`ESC ] 4 ; index ; ? BEL`).
+	 * @param timeoutMs Query timeout in milliseconds.
+	 * @returns Promise containing colors 0-15, or undefined if any reply is missing when it times out.
+	 */
+	queryTerminalPalette({ timeoutMs }: { timeoutMs: number }): Promise<RgbColor[] | undefined> {
+		return new Promise((resolve) => {
+			// A newer query supersedes an unfinished one.
+			this.pendingOsc4PaletteQuery?.resolve?.(undefined);
+			const query: PendingOsc4PaletteQuery = {
+				colors: Array.from({ length: 16 }, () => undefined),
+				remaining: 16,
+				resolve,
+				timer: undefined,
+			};
+			query.timer = setTimeout(() => {
+				query.resolve?.(undefined);
+				query.resolve = undefined;
+				if (this.pendingOsc4PaletteQuery === query) this.pendingOsc4PaletteQuery = undefined;
+			}, timeoutMs);
+			this.pendingOsc4PaletteQuery = query;
+			this.pendingOsc4PaletteReplies += 16;
+			this.terminal.write(Array.from({ length: 16 }, (_, index) => `\x1b]4;${index};?\x07`).join(""));
 		});
 	}
 
